@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using Zenject;
@@ -9,6 +10,7 @@ public abstract class FriendListUI : MonoBehaviour
 
     [SerializeField] private Transform container;
     [SerializeField] protected TabActionGroupUI tabActionGroupUI;
+    [SerializeField] private TextMeshProUGUI emptyText;
 
     protected ObjectPool<FriendElementUI> objectPool;
     protected string selectedPlayerID = string.Empty;
@@ -29,16 +31,15 @@ public abstract class FriendListUI : MonoBehaviour
 
     protected abstract List<FriendData> GetFriendList();
 
-    protected virtual void OnFriendListChanged()
-    {
-        RefreshFriendData();
-    }
+    protected virtual void OnFriendListChanged() => RefreshFriendData();
 
     public void RefreshFriendData()
     {
         objectPool.Hide();
 
         var friends = GetFriendList();
+
+        emptyText.gameObject.SetActive(friends.Count == 0);
 
         foreach (var friend in friends)
         {
@@ -100,6 +101,11 @@ public abstract class FriendListUI : MonoBehaviour
     private void OnDisable()
     {
         tabActionGroupUI.Hide();
+    }
+
+    private void OnEnable()
+    {
+        RefreshFriendData();
     }
 
     protected virtual void OnDestroy()

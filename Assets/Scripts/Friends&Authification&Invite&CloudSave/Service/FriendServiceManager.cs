@@ -7,7 +7,6 @@ using Unity.Services.Friends.Exceptions;
 using Unity.Services.Friends.Models;
 using Unity.Services.Friends.Notifications;
 using UnityEngine;
-using Zenject;
 
 public class FriendServiceManager : IDisposable
 {
@@ -33,7 +32,8 @@ public class FriendServiceManager : IDisposable
         }
     }
 
-    [Inject] private IFriendDataCreator frinedDataCreator;
+    private bool isInit;
+    private IFriendDataCreator friendDataCreator;
 
     private FriendServiceManager()
     {
@@ -41,6 +41,8 @@ public class FriendServiceManager : IDisposable
 
         _ = InitializeAsync();
     }
+
+    public void SetFriendDataCreator(IFriendDataCreator creator) => friendDataCreator = creator;
 
     public async Task InitializeAsync()
     {
@@ -60,6 +62,7 @@ public class FriendServiceManager : IDisposable
         try
         {
             await FriendsService.Instance.InitializeAsync();
+            await FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Online);
 
             Debug.Log("Initilize frined service");
 
@@ -271,8 +274,6 @@ public class FriendServiceManager : IDisposable
 
             Debug.Log($"Send message");
 
-            await ForceRelationshipsRefreshAsync();
-
             callback?.Invoke(true, string.Empty);
         }
         catch (FriendsServiceException e)
@@ -315,9 +316,11 @@ public class FriendServiceManager : IDisposable
     {
         List<FriendData> frinedList = new List<FriendData>();
 
+        if (!isInit) { return frinedList; }
+
         foreach (Relationship relationship in FriendsService.Instance.Friends)
         {
-            frinedList.Add(frinedDataCreator.GetFriendPlayerData(relationship)); 
+            frinedList.Add(friendDataCreator.GetFriendPlayerData(relationship)); 
         }
 
         return frinedList;
@@ -327,15 +330,15 @@ public class FriendServiceManager : IDisposable
     {
         List<FriendData> frinedList = new List<FriendData>();
 
+        if (!isInit) { return frinedList; }
+
         foreach (Relationship relationship in FriendsService.Instance.IncomingFriendRequests)
         {
-            frinedList.Add(frinedDataCreator.GetFriendPlayerData(relationship));
+            frinedList.Add(friendDataCreator.GetFriendPlayerData(relationship));
         }
 
         return frinedList;
     }
-
-    public int GetPlayerAvatarIndex() => 0;
 
     private void FriendsService_PresenceUpdated(IPresenceUpdatedEvent obj) => OnFriendListChanged?.Invoke();
 
@@ -343,15 +346,17 @@ public class FriendServiceManager : IDisposable
 
     private void FriendsService_RelationshipDeleted(IRelationshipDeletedEvent obj) => OnFriendListChanged?.Invoke();
 
+    private void FriendsService_MessageReceived(IMessageReceivedEvent obj) => OnMessageReceive?.Invoke(obj);
+
     private void FriendServiceManager_OnInitialize()
     {
+        isInit = true;
+
         FriendsService.Instance.PresenceUpdated += FriendsService_PresenceUpdated;
         FriendsService.Instance.RelationshipAdded += FriendsService_RelationshipAdded;
         FriendsService.Instance.RelationshipDeleted += FriendsService_RelationshipDeleted;
         FriendsService.Instance.MessageReceived += FriendsService_MessageReceived;
     }
-
-    private void FriendsService_MessageReceived(IMessageReceivedEvent obj) => OnMessageReceive?.Invoke(obj);
 
     private void AuthenticationServiceManager_OnSignIn()
     {

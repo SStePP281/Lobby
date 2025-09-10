@@ -3,6 +3,7 @@ using UnityEngine;
 using Unity.Services.Friends.Notifications;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 public class InviteLobbyManager : IDisposable
 {
@@ -23,26 +24,29 @@ public class InviteLobbyManager : IDisposable
         }
     }
 
-    private List<string> inviteRequestMessageList;
-    private List<string> myIntiveRequestMessageList;
+    private readonly List<string> inviteRequestList;
+    private readonly Dictionary<string, DateTime> myInviteRequestList;
 
     private InviteLobbyManager()
     {
-        inviteRequestMessageList = new List<string>();
-        myIntiveRequestMessageList = new List<string>();
+        inviteRequestList = new List<string>();
+        myInviteRequestList = new Dictionary<string, DateTime>();
 
         FriendServiceManager.Instance.OnMessageReceive += FriendServiceManager_OnMessageReceive;
+        FriendServiceManager.Instance.OnFriendListChanged += FriendServiceManager_OnFriendListChanged;
     }
 
     public void SendLobbyInviteRequest(string targetUserId)
     {
         InviteRequest inviteRequest = new InviteRequest(AuthenticationServiceManager.Instance.GetUserId());
 
-        FriendServiceManager.Instance.SendMessage(targetUserId, inviteRequest, (bool succes, string e) => 
-        { 
-            if (succes) 
-            { 
-                myIntiveRequestMessageList.Add(targetUserId); 
+        FriendServiceManager.Instance.SendMessage(targetUserId, inviteRequest, (bool succes, string e) =>
+        {
+            if (succes)
+            {
+                myInviteRequestList[targetUserId] = DateTime.UtcNow;
+
+                _ = StartInviteTimeout(targetUserId);
 
                 FriendServiceManager.Instance.TryForceRefresh();
             }
@@ -51,7 +55,7 @@ public class InviteLobbyManager : IDisposable
 
     public void SendLobbyInviteResponse(string targetUserId)
     {
-        if (!inviteRequestMessageList.Any(r => r == targetUserId)) { return; }
+        if (!inviteRequestList.Any(r => r == targetUserId)) { return; }
 
         InviteResponse inviteResponse = new InviteResponse(AuthenticationServiceManager.Instance.GetUserId());
 
@@ -59,18 +63,50 @@ public class InviteLobbyManager : IDisposable
         { 
             if (succes) 
             { 
-                inviteRequestMessageList.Remove(targetUserId);
+                inviteRequestList.Remove(targetUserId);
 
                 FriendServiceManager.Instance.TryForceRefresh();
             } 
         });
     }
 
+    public void SendLobbyInviteCancellation(string targetUserId) // send invite cancellation
+    {
+        if (!myInviteRequestList.Any(r => r.Key == targetUserId)) { return; }
+
+        InviteCancellation inviteCancellation = new InviteCancellation(AuthenticationServiceManager.Instance.GetUserId());
+
+        FriendServiceManager.Instance.SendMessage(targetUserId, inviteCancellation, (bool succes, string e) =>
+        {
+            if (succes)
+            {
+                myInviteRequestList.Remove(targetUserId);
+
+                FriendServiceManager.Instance.TryForceRefresh();
+
+                Debug.Log($"Invite to {targetUserId} expired and removed.");
+            }
+        });
+    }
+
+    private async Task StartInviteTimeout(string targetUserId) // delete old request
+    {
+        await Task.Delay(TimeSpan.FromSeconds(FriendServiceData.REQUEST_LIFE_TIME));
+
+        if (myInviteRequestList.TryGetValue(targetUserId, out var time))
+        {
+            if (DateTime.UtcNow - time >= TimeSpan.FromSeconds(FriendServiceData.REQUEST_LIFE_TIME))
+            {
+                SendLobbyInviteCancellation(targetUserId);
+            }
+        }
+    }
+
     private void OnLobbyInvityRequest(InviteRequest inviteRequest) // Show info
     {
-        if (!inviteRequestMessageList.Any(r => r == inviteRequest.SenderId))
+        if (!inviteRequestList.Any(r => r == inviteRequest.SenderId))
         {
-            inviteRequestMessageList.Add(inviteRequest.SenderId);
+            inviteRequestList.Add(inviteRequest.SenderId);
 
             FriendServiceManager.Instance.TryForceRefresh();
 
@@ -88,13 +124,15 @@ public class InviteLobbyManager : IDisposable
 
             FriendServiceManager.Instance.SendMessage(inviteResponse.SenderId, message, (bool succes, string e) => 
             { 
-                if (succes) 
+                if (succes)
                 { 
-                    myIntiveRequestMessageList.Remove(inviteResponse.SenderId);
+                    myInviteRequestList.Remove(inviteResponse.SenderId);
 
                     FriendServiceManager.Instance.TryForceRefresh();
                 }
             });
+
+            Debug.Log("Send lobby id to invity");
         }
         else
         {
@@ -105,6 +143,18 @@ public class InviteLobbyManager : IDisposable
                     OnLobbyInvityRespone(inviteResponse); 
                 } 
             });
+
+            Debug.Log("Crate lobby to invity");
+        }
+    }
+
+    private void OnLobbyInviteCancellation(InviteCancellation inviteCancellation)
+    {
+        if (inviteRequestList.Any(r => r == inviteCancellation.SenderId))
+        {
+            inviteRequestList.Remove(inviteCancellation.SenderId);
+
+            FriendServiceManager.Instance.TryForceRefresh();
         }
     }
 
@@ -137,6 +187,13 @@ public class InviteLobbyManager : IDisposable
                     OnLobbyInvityRespone(inviteResponse);
                 }
                 break;
+            case nameof(InviteCancellation):
+                InviteCancellation inviteCancellation = message.GetAs<InviteCancellation>();
+                if (inviteCancellation != null)
+                {
+                    OnLobbyInviteCancellation(inviteCancellation);
+                }
+                break;
             case nameof(LobbyIdMessage):
                 LobbyIdMessage lobbyIdMessage = message.GetAs<LobbyIdMessage>();
                 if (lobbyIdMessage != null)
@@ -147,17 +204,28 @@ public class InviteLobbyManager : IDisposable
             default:
                 return;
         }
+    }
 
-        FriendServiceManager.Instance.TryForceRefresh();
+    private void FriendServiceManager_OnFriendListChanged()
+    {
+        var validFriends = FriendServiceManager.Instance.GetFriendList().Select(f => f.FriendID).ToHashSet();
+
+        var toRemoveMy = myInviteRequestList.Keys.Where(id => !validFriends.Contains(id)).ToList();
+        foreach (var id in toRemoveMy)
+            myInviteRequestList.Remove(id);
+
+        var toRemoveIncoming = inviteRequestList.Where(id => !validFriends.Contains(id)).ToList();
+        foreach (var id in toRemoveIncoming)
+            inviteRequestList.Remove(id);
     }
 
     public FriendData.RequestType GetRequstType(string userId)
     {
-        if (myIntiveRequestMessageList.Contains(userId))
+        if (myInviteRequestList.ContainsKey(userId))
         {
             return FriendData.RequestType.MyInvited;
         }
-        else if (inviteRequestMessageList.Contains(userId))
+        else if (inviteRequestList.Contains(userId))
         {
             return FriendData.RequestType.WasInvited;
         }    
@@ -165,6 +233,18 @@ public class InviteLobbyManager : IDisposable
         {
             return FriendData.RequestType.None;
         }
+    }
+
+    public bool CanBeInvited(string targetUserID)
+    {
+        FriendData friendData = FriendServiceManager.Instance.GetFriendList().FirstOrDefault(f => f.FriendID == targetUserID);
+
+        return friendData.IsOnline && friendData.Type != FriendData.RequestType.MyInvited;
+    }
+
+    public bool CanAcceptInvite(string targetUserID)
+    {
+        return GetRequstType(targetUserID) == FriendData.RequestType.WasInvited;
     }
 
     public void Dispose()
@@ -175,7 +255,8 @@ public class InviteLobbyManager : IDisposable
 
         if (FriendServiceManager.Instance != null)
         {
-            FriendServiceManager.Instance.OnMessageReceive += FriendServiceManager_OnMessageReceive;
+            FriendServiceManager.Instance.OnMessageReceive -= FriendServiceManager_OnMessageReceive;
+            FriendServiceManager.Instance.OnFriendListChanged -= FriendServiceManager_OnFriendListChanged;
         }
     }
 }

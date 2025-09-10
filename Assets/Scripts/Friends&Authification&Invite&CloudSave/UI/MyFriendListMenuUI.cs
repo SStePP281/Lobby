@@ -1,9 +1,8 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class MyFriendListMenuUI : FriendListUI
-{
+{ 
     protected override List<FriendData> GetFriendList() => FriendServiceManager.Instance.GetFriendList();
 
     protected override void OnFriendElementClick(Vector2 elementPos, string playerID)
@@ -16,14 +15,13 @@ public class MyFriendListMenuUI : FriendListUI
             new TabNameAction("Delete", DeleteFromFriend)
         };
 
-        if (FriendServiceManager.Instance.GetFriendList().Where(f => f.FriendID == playerID).First().IsOnline)
+        if (InviteLobbyManager.Instance.CanBeInvited(selectedPlayerID))
         {
             actionList.Insert(1, new TabNameAction("Invite", InviteForLobby));
         }
 
-        if (InviteLobbyManager.Instance.GetRequstType(playerID) == FriendData.RequestType.WasInvited)
+        if (InviteLobbyManager.Instance.CanAcceptInvite(selectedPlayerID))
         {
-
             actionList.Insert(1, new TabNameAction("Accept request", AcceptRequst));
         }
 

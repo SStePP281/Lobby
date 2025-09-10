@@ -39,6 +39,22 @@ public class InviteResponse : BaseMessage
 }
 
 [Serializable]
+public class InviteCancellation : BaseMessage
+{
+    public InviteCancellation() : this(string.Empty) { }
+
+    public InviteCancellation(string senderId) : this(nameof(InviteCancellation), senderId) { }
+
+    private InviteCancellation(string type, string senderId)
+    {
+        Type = type;
+        SenderId = senderId;
+    }
+
+    public string SenderId;
+}
+
+[Serializable]
 public class LobbyIdMessage : BaseMessage
 {
     public LobbyIdMessage() : this(string.Empty) { }
