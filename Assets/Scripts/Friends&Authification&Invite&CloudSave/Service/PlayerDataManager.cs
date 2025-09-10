@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Unity.Services.CloudSave.Models;
 using UnityEngine;
 
@@ -40,7 +43,19 @@ public class PlayerDataManager : IDisposable
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
     }
 
-    private void FriendServiceManager_OnInitialize() => FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity);
+    private void FriendServiceManager_OnInitialize()
+    {
+        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool s, Item item) => 
+        {
+            if (s)
+            {
+                myFriendActivity.AvatarIndex = item.Value.GetAs<int>();
+                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity);
+            }
+        });
+
+        _ = LoadFriendOfflineData(PlayerDataChanged);
+    }
 
     public void SetFriendAvatarListSO(FriendAvatarListSO lits) => avatarListSO = lits;
 
@@ -54,7 +69,7 @@ public class PlayerDataManager : IDisposable
 
             if (s)
             {
-                CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.AVATAR_DATA, spriteIndex, false);
+                CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.AVATAR_DATA, spriteIndex, true);
             }
         });
     }
@@ -76,25 +91,14 @@ public class PlayerDataManager : IDisposable
 
     public Sprite GetFriendAvatar(string friendID)
     {
+        int avatarIndex = 0;
+
         if (myFriendDict.ContainsKey(friendID))
         {
-            return avatarListSO.GetAvatarSpriteByIndex(myFriendDict[friendID].AvatarIndex);
+            avatarIndex = myFriendDict[friendID].AvatarIndex;
         }
-        else
-        {
-            CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool succes, Item item) => 
-            {
-                if (succes)
-                {
-                    myFriendDict[friendID] = new FriendActivity(item.Value.GetAs<int>());
 
-                    FriendServiceManager.Instance.TryForceRefresh();
-                }
-            }, 
-            friendID);
-
-            return null;
-        }
+        return avatarListSO.GetAvatarSpriteByIndex(avatarIndex);
     }
 
     private void PlayerDataChanged() => OnPlayerDataChanged?.Invoke();
@@ -112,6 +116,48 @@ public class PlayerDataManager : IDisposable
                 PlayerDataChanged();
             }
         });
+    }
+
+    private async Task LoadFriendOfflineData(Action callback = null)
+    {
+        var friendList = FriendServiceManager.Instance.GetFriendList();
+        var offlineFriends = friendList.Where(f => !f.IsOnline).ToList();
+
+        if (offlineFriends.Count == 0)
+        {
+            callback?.Invoke();
+            return;
+        }
+
+        var tcs = new TaskCompletionSource<bool>();
+        int remaining = offlineFriends.Count;
+
+        foreach (FriendData friendData in offlineFriends)
+        {
+            CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool success, Item item) =>
+            {
+                if (success)
+                {
+                    if (myFriendDict.ContainsKey(friendData.FriendID))
+                    {
+                        myFriendDict[friendData.FriendID].AvatarIndex = item.Value.GetAs<int>();
+                    }
+                    else
+                    {
+                        myFriendDict[friendData.FriendID] = new FriendActivity(item.Value.GetAs<int>());
+                    }
+                }
+
+                if (Interlocked.Decrement(ref remaining) == 0)
+                {
+                    tcs.SetResult(true);
+                }
+            }, friendData.FriendID);
+        }
+
+        await tcs.Task;
+
+        callback?.Invoke();
     }
 
     public void Dispose()

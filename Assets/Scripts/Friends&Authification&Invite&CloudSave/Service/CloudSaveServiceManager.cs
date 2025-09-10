@@ -48,28 +48,25 @@ public class CloudSaveServiceManager : IDisposable
     {
         try
         {
-            Item result = null;
+            Dictionary<string, Item> loadData = new Dictionary<string, Item>();
+
+            LoadOptions loadOptions = null;
 
             if (string.IsNullOrEmpty(playerID))
             {
-                Dictionary<string, Item> loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string>() { dataField});
-
-                if (loadData.TryGetValue(dataField, out result))
-                {
-                    callback?.Invoke(true, result);
-                    return;
-                }
+                loadOptions = new LoadOptions(new PublicReadAccessClassOptions(AuthenticationServiceManager.Instance.GetUserId()));
             }
             else
             {
-                Dictionary<string, Item> loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string>() { dataField },
-                                                                                 new LoadOptions(new PublicReadAccessClassOptions(playerID)));
+                loadOptions = new LoadOptions(new PublicReadAccessClassOptions(playerID));
+            }
 
-                if (loadData.TryGetValue(dataField, out result))
-                {
-                    callback?.Invoke(true, result);
-                    return;
-                }
+            loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string>() { dataField }, loadOptions);
+
+            if (loadData.TryGetValue(dataField, out Item result))
+            {
+                callback?.Invoke(true, result);
+                return;
             }
 
             callback?.Invoke(false, null);

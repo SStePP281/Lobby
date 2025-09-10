@@ -369,10 +369,13 @@ public class FriendServiceManager : IDisposable
     {
         OnInitialize -= FriendServiceManager_OnInitialize;
 
-        FriendsService.Instance.PresenceUpdated -= FriendsService_PresenceUpdated;
-        FriendsService.Instance.RelationshipAdded -= FriendsService_RelationshipAdded;
-        FriendsService.Instance.RelationshipDeleted -= FriendsService_RelationshipDeleted;
-        FriendsService.Instance.MessageReceived -= FriendsService_MessageReceived;
+        if (FriendsService.Instance != null)
+        {
+            FriendsService.Instance.PresenceUpdated -= FriendsService_PresenceUpdated;
+            FriendsService.Instance.RelationshipAdded -= FriendsService_RelationshipAdded;
+            FriendsService.Instance.RelationshipDeleted -= FriendsService_RelationshipDeleted;
+            FriendsService.Instance.MessageReceived -= FriendsService_MessageReceived;
+        }
 
         instance = null;
 
