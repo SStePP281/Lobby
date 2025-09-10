@@ -3,7 +3,7 @@
 [Serializable]
 public class FriendActivity
 {
-    public FriendActivity() : this (0) { }
+    public FriendActivity() : this (-1) { }
 
     public FriendActivity(int avatarIndex)
     {

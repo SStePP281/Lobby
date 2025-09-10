@@ -6,12 +6,12 @@ public class FriendAvatarListSO : ScriptableObject
 {
     public List<Sprite> AvatarList;
 
-    public Sprite GetAvatarSpriteByIndex(int index)
+    public Sprite GetSpriteByIndex(int index)
     {
         return index >= 0 && index < AvatarList.Count ? AvatarList[index] : null;
     }
     
-    public int GetSpriteIndexBySprite(Sprite sprite)
+    public int GetIndexBySprite(Sprite sprite)
     {
         return sprite == null ? 0 : AvatarList.IndexOf(sprite);
     }

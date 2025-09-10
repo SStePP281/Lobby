@@ -62,9 +62,11 @@ public class FriendServiceManager : IDisposable
         try
         {
             await FriendsService.Instance.InitializeAsync();
-            await FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Online);
 
+            isInit = true;
             Debug.Log("Initilize frined service");
+
+            await FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Online);
 
             OnInitialize?.Invoke();
         }
@@ -350,12 +352,16 @@ public class FriendServiceManager : IDisposable
 
     private void FriendServiceManager_OnInitialize()
     {
-        isInit = true;
-
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
         FriendsService.Instance.PresenceUpdated += FriendsService_PresenceUpdated;
         FriendsService.Instance.RelationshipAdded += FriendsService_RelationshipAdded;
         FriendsService.Instance.RelationshipDeleted += FriendsService_RelationshipDeleted;
         FriendsService.Instance.MessageReceived += FriendsService_MessageReceived;
+    }
+
+    private void AuthenticationServiceManager_OnSignOut()
+    {
+        isInit = false;
     }
 
     private void AuthenticationServiceManager_OnSignIn()
@@ -375,6 +381,11 @@ public class FriendServiceManager : IDisposable
             FriendsService.Instance.RelationshipAdded -= FriendsService_RelationshipAdded;
             FriendsService.Instance.RelationshipDeleted -= FriendsService_RelationshipDeleted;
             FriendsService.Instance.MessageReceived -= FriendsService_MessageReceived;
+        }
+
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 
         instance = null;

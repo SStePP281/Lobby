@@ -16,13 +16,19 @@ public class FriendDataCreator : IFriendDataCreator
         if (presence != null)
         {
             FriendActivity friendActivity = presence.GetActivity<FriendActivity>();
+            if (friendActivity == null)
+            {
+                friendActivity = PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id);
+            }
+
             if (friendActivity != null)
             {
-                avatarSprite = avatarListSO.GetAvatarSpriteByIndex(friendActivity.AvatarIndex);
-            }
-            else
-            {
-                avatarSprite = PlayerDataManager.Instance.GetFriendAvatar(relationship.Member.Id);
+                avatarSprite = avatarListSO.GetSpriteByIndex(friendActivity.AvatarIndex);
+
+                if (avatarSprite == null)
+                {
+                    avatarSprite = avatarListSO.GetSpriteByIndex(PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id).AvatarIndex);
+                }
             }
 
             isOnline = presence.Availability == Availability.Online;

@@ -1,9 +1,12 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using Zenject;
 
 public class UserLocalInformationUI : MonoBehaviour
 {
+    [Inject] private FriendAvatarListSO avatarListSO;
+
     [Header("Reference")]
     [SerializeField] private Image userAvatarImage;
     [SerializeField] private TextMeshProUGUI userNameText;
@@ -18,10 +21,13 @@ public class UserLocalInformationUI : MonoBehaviour
     private void RefreshUserData()
     {
         string playerName = PlayerDataManager.Instance.GetMyUserName();
-        Sprite avatar = PlayerDataManager.Instance.GetMyAvatar();
-
         userNameText.text = string.IsNullOrEmpty(playerName) ? string.Empty : playerName.Split("#")[0];
-        userAvatarImage.sprite = avatar;
+
+        FriendActivity friendActivity = PlayerDataManager.Instance.GetMyFriendActivity();
+        if (friendActivity != null )
+        {
+            userAvatarImage.sprite = avatarListSO.GetSpriteByIndex(friendActivity.AvatarIndex);
+        }
     }
 
     private void OnDestroy()

@@ -25,7 +25,7 @@ public class SetAvatarMenuUI : SystemWindowTrigger
     {
         foreach (Sprite sprite in avatarList.AvatarList)
         {
-            int index = avatarList.GetSpriteIndexBySprite(sprite);
+            int index = avatarList.GetIndexBySprite(sprite);
 
             avatarElementFactory.CreateAvatarElement(avatarContainer).Initialize(sprite, index, AvatarElementUI_OnClick);
         }
@@ -37,7 +37,10 @@ public class SetAvatarMenuUI : SystemWindowTrigger
     {
         if (selectedAvatar == null) { return; }
 
-        PlayerDataManager.Instance.SetNewAvatar(selectedAvatar, PlayerDataManager_TrySetPresenceActivity_Callback);
+        FriendActivity activity = PlayerDataManager.Instance.GetMyFriendActivity();
+        activity.AvatarIndex = avatarList.GetIndexBySprite(selectedAvatar);
+
+        PlayerDataManager.Instance.SetMyFriendActivity(activity, PlayerDataManager_TrySetPresenceActivity_Callback);
 
         InformationUI.Instance.Show("Wait...", false);
     }
@@ -58,7 +61,7 @@ public class SetAvatarMenuUI : SystemWindowTrigger
 
     private void AvatarElementUI_OnClick(int selectedIndex)
     {
-        selectedAvatar = avatarList.GetAvatarSpriteByIndex(selectedIndex);
+        selectedAvatar = avatarList.GetSpriteByIndex(selectedIndex);
 
         demoImage.sprite = selectedAvatar;
     }
@@ -70,6 +73,10 @@ public class SetAvatarMenuUI : SystemWindowTrigger
 
     private void OnEnable()
     {
-        demoImage.sprite = PlayerDataManager.Instance.GetMyAvatar();
+        FriendActivity friendActivity = PlayerDataManager.Instance.GetMyFriendActivity();
+        if (friendActivity != null)
+        {
+            demoImage.sprite = avatarList.GetSpriteByIndex(friendActivity.AvatarIndex);
+        }
     }
 }

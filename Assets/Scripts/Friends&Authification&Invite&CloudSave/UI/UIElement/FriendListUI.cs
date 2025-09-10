@@ -19,8 +19,8 @@ public abstract class FriendListUI : MonoBehaviour
     {
         objectPool = new ObjectPool<FriendElementUI>(friendElementFactory.CreateFriendElement, container);
 
-        FriendServiceManager.Instance.OnInitialize += OnFriendListChanged;
         FriendServiceManager.Instance.OnFriendListChanged += OnFriendListChanged;
+        PlayerDataManager.Instance.OnPlayerDataChanged += OnFriendListChanged;
     }
 
     private void Start()
@@ -112,8 +112,12 @@ public abstract class FriendListUI : MonoBehaviour
     {
         if (FriendServiceManager.Instance != null)
         {
-            FriendServiceManager.Instance.OnInitialize -= OnFriendListChanged;
             FriendServiceManager.Instance.OnFriendListChanged -= OnFriendListChanged;
+        }
+
+        if (PlayerDataManager.Instance != null)
+        {
+            PlayerDataManager.Instance.OnPlayerDataChanged -= OnFriendListChanged;
         }
 
         if (MenuInput.Instance != null)

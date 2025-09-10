@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.Services.CloudSave.Models;
-using UnityEngine;
 
 public class PlayerDataManager : IDisposable
 {
@@ -35,33 +34,24 @@ public class PlayerDataManager : IDisposable
     private PlayerDataManager()
     {
         myFriendDict = new Dictionary<string, FriendActivity>();
-        myFriendActivity = new FriendActivity();
 
         FriendServiceManager.Instance.OnInitialize += FriendServiceManager_OnInitialize;
-        FriendServiceManager.Instance.OnUserDataUpdate += PlayerDataChanged;
-        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += PlayerDataChanged;
-        AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
-    }
-
-    private void FriendServiceManager_OnInitialize()
-    {
-        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool s, Item item) => 
-        {
-            if (s)
-            {
-                myFriendActivity.AvatarIndex = item.Value.GetAs<int>();
-                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity);
-            }
-        });
-
-        _ = LoadFriendOfflineData(PlayerDataChanged);
+        FriendServiceManager.Instance.OnUserDataUpdate += FriendServiceManager_OnUserDataUpdate;
+        FriendServiceManager.Instance.OnFriendListChanged += FriendServiceManager_OnFriendListChanged;
+        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += FriendServiceManager_OnUserDataUpdate;
     }
 
     public void SetFriendAvatarListSO(FriendAvatarListSO lits) => avatarListSO = lits;
 
-    public void SetNewAvatar(int spriteIndex, Action<bool, string> callback = null)
+    public string GetMyUserID() =>  AuthenticationServiceManager.Instance.GetUserId();
+
+    public string GetMyUserName() => AuthenticationServiceManager.Instance.GetPlayerName();
+
+    public FriendActivity GetMyFriendActivity() => myFriendActivity;
+
+    public void SetMyFriendActivity(FriendActivity friendActivity, Action<bool, string> callback = null)
     {
-        myFriendActivity.AvatarIndex = spriteIndex;
+        myFriendActivity = friendActivity;
 
         FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity, (bool s, string m) =>
         {
@@ -69,82 +59,122 @@ public class PlayerDataManager : IDisposable
 
             if (s)
             {
-                CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.AVATAR_DATA, spriteIndex, true);
+                CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true);
             }
         });
     }
 
-    public void SetNewAvatar(Sprite sprite, Action<bool, string> callback = null)
+    public FriendActivity GetFriendActivity(string friendID)
     {
-        if (sprite == null) { return; }
-
-        SetNewAvatar(avatarListSO.GetSpriteIndexBySprite(sprite), callback);
-    }
-
-    public string GetMyUserID() =>  AuthenticationServiceManager.Instance.GetUserId();
-
-    public string GetMyUserName() => AuthenticationServiceManager.Instance.GetPlayerName();
-
-    public int GetMyAvatarIndex() => myFriendActivity.AvatarIndex;
-
-    public Sprite GetMyAvatar() => avatarListSO == null ? null : avatarListSO.GetAvatarSpriteByIndex(GetMyAvatarIndex());
-
-    public Sprite GetFriendAvatar(string friendID)
-    {
-        int avatarIndex = 0;
-
         if (myFriendDict.ContainsKey(friendID))
         {
-            avatarIndex = myFriendDict[friendID].AvatarIndex;
+            return myFriendDict[friendID];
         }
 
-        return avatarListSO.GetAvatarSpriteByIndex(avatarIndex);
+        return null;
     }
 
-    private void PlayerDataChanged() => OnPlayerDataChanged?.Invoke();
-
-    private void AuthenticationServiceManager_OnSignIn()
+    private void FriendServiceManager_OnInitialize()
     {
-        PlayerDataChanged();
-
-        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool s, Item item) => 
+        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, (bool s, Item item) =>
         {
             if (s)
             {
-                myFriendActivity.AvatarIndex = item.Value.GetAs<int>();
-
-                PlayerDataChanged();
+                myFriendActivity = item.Value.GetAs<FriendActivity>();
+                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity);
             }
         });
+
+        _ = LoadFriendOfflineData(FriendServiceManager_OnUserDataUpdate);
+    }
+
+    private void FriendServiceManager_OnUserDataUpdate() => OnPlayerDataChanged?.Invoke();
+
+    private void FriendServiceManager_OnFriendListChanged()
+    {
+        List<FriendData> friendList = FriendServiceManager.Instance.GetFriendList()
+                 .Concat(FriendServiceManager.Instance.GetIncomingRequestsList())
+                 .ToList();
+
+        foreach (FriendData friendData in friendList)
+        {
+            if (!myFriendDict.ContainsKey(friendData.FriendID))
+            {
+                if (friendData.Avatar != null)
+                {
+                    myFriendDict[friendData.FriendID] = new FriendActivity(avatarListSO.GetIndexBySprite(friendData.Avatar));
+                }
+                else
+                {
+                    CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, (bool s, Item item) => 
+                    {
+                        if (s)
+                        {
+                            myFriendDict[friendData.FriendID] = item.Value.GetAs<FriendActivity>();
+                        }
+                    }, 
+                    friendData.FriendID);
+                }
+            }
+            else
+            {
+                if (friendData.Avatar != null)
+                {
+                    myFriendDict[friendData.FriendID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
+                }
+            }
+        }
     }
 
     private async Task LoadFriendOfflineData(Action callback = null)
     {
-        var friendList = FriendServiceManager.Instance.GetFriendList();
-        var offlineFriends = friendList.Where(f => !f.IsOnline).ToList();
+        List<FriendData> friendList = FriendServiceManager.Instance.GetFriendList()
+                 .Concat(FriendServiceManager.Instance.GetIncomingRequestsList())
+                 .ToList();
 
-        if (offlineFriends.Count == 0)
+        List<FriendData> offlineFriendList = new List<FriendData>();
+        foreach (FriendData friendData in friendList)
+        {
+            if (friendData.IsOnline)
+            {
+                if (!myFriendDict.ContainsKey(friendData.FriendID))
+                {
+                    myFriendDict[friendData.FriendID] = new FriendActivity();
+                }
+
+                if (friendData.Avatar != null)
+                {
+                    myFriendDict[friendData.FriendID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
+                }
+            }
+            else
+            {
+                offlineFriendList.Add(friendData);
+            }
+        }
+
+        if (offlineFriendList.Count == 0)
         {
             callback?.Invoke();
             return;
         }
 
         var tcs = new TaskCompletionSource<bool>();
-        int remaining = offlineFriends.Count;
+        int remaining = offlineFriendList.Count;
 
-        foreach (FriendData friendData in offlineFriends)
+        foreach (FriendData friendData in offlineFriendList)
         {
-            CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.AVATAR_DATA, (bool success, Item item) =>
+            CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, (bool success, Item item) =>
             {
                 if (success)
                 {
-                    if (myFriendDict.ContainsKey(friendData.FriendID))
+                    myFriendDict[friendData.FriendID] = item.Value.GetAs<FriendActivity>();
+                }
+                else
+                {
+                    if (!myFriendDict.ContainsKey(friendData.FriendID))
                     {
-                        myFriendDict[friendData.FriendID].AvatarIndex = item.Value.GetAs<int>();
-                    }
-                    else
-                    {
-                        myFriendDict[friendData.FriendID] = new FriendActivity(item.Value.GetAs<int>());
+                        myFriendDict[friendData.FriendID] = new FriendActivity();
                     }
                 }
 
@@ -152,7 +182,8 @@ public class PlayerDataManager : IDisposable
                 {
                     tcs.SetResult(true);
                 }
-            }, friendData.FriendID);
+            }, 
+            friendData.FriendID);
         }
 
         await tcs.Task;
@@ -168,14 +199,14 @@ public class PlayerDataManager : IDisposable
 
         if (AuthenticationServiceManager.Instance != null)
         {
-            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= PlayerDataChanged;
-            AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
+            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= FriendServiceManager_OnUserDataUpdate;
         }
 
         if (FriendServiceManager.Instance != null)
         {
-            FriendServiceManager.Instance.OnUserDataUpdate -= PlayerDataChanged;
             FriendServiceManager.Instance.OnInitialize -= FriendServiceManager_OnInitialize;
+            FriendServiceManager.Instance.OnUserDataUpdate -= FriendServiceManager_OnUserDataUpdate;
+            FriendServiceManager.Instance.OnFriendListChanged -= FriendServiceManager_OnFriendListChanged;
         }
     }
 }
