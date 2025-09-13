@@ -7,7 +7,7 @@ public class HideInputFiledUI : MonoBehaviour
 
     public void HidePassword(bool isActive)
     {
-        inputField.contentType = isActive ? TMP_InputField.ContentType.Standard : TMP_InputField.ContentType.Password;
+        inputField.contentType = isActive ? TMP_InputField.ContentType.Password : TMP_InputField.ContentType.Standard;
         inputField.ForceLabelUpdate();
     }
 }

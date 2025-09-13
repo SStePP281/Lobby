@@ -71,13 +71,13 @@ public class AuthenticationServiceManager : IDisposable
         return false;
     }
 
-    public bool TrySingUp(string username, string password, Action<bool, string> callback = null)
+    public bool TrySingUp(string username, string password, string playerName, Action<bool, string> callback = null)
     {
         if (IsSignedIn) { return true; }
 
-        if (CheckValidUsername(username) && CheckValidPassword(password))
+        if (CheckValidUsername(username) && CheckValidPassword(password) && CheckValidPlayerName(playerName))
         {
-            _ = SingUpAsync(username, password, callback);
+            _ = SingUpAsync(username, password, playerName, callback);
 
             return true;
         }
@@ -192,11 +192,12 @@ public class AuthenticationServiceManager : IDisposable
         }
     }
 
-    private async Task SingUpAsync(string username, string password, Action<bool, string> callback = null)
+    private async Task SingUpAsync(string username, string password, string playerName, Action<bool, string> callback = null)
     {
         try
         {
             await AuthenticationService.Instance.SignUpWithUsernamePasswordAsync(username, password);
+            await UpdatePlayerNameAsync(playerName);
 
             Debug.Log($"Create new account: Username: {username}, Password: {password}");
 
@@ -307,7 +308,7 @@ public class AuthenticationServiceManager : IDisposable
         }
     }
 
-    private bool CheckValidPassword(string password)
+    public bool CheckValidPassword(string password)
     {
         if (string.IsNullOrEmpty(password)) return false;
         if (password.Length < 8 || password.Length > 30) return false;
@@ -319,12 +320,12 @@ public class AuthenticationServiceManager : IDisposable
         return true;
     }
 
-    private bool CheckValidUsername(string username)
+    public bool CheckValidUsername(string username)
     {
         return !string.IsNullOrEmpty(username) && username.Length >= AuthenticationServiceData.MIN_USER_NAME_LENGHT && username.Length <= AuthenticationServiceData.MAX_USER_NAME_LENGHT;
     }
 
-    private bool CheckValidPlayerName(string playerName)
+    public bool CheckValidPlayerName(string playerName)
     {
         return !string.IsNullOrEmpty(playerName) && playerName.Length >= AuthenticationServiceData.MIN_PLAYER_NAME_LENGHT && 
             playerName.Length <= AuthenticationServiceData.MAX_PLAYER_NAME_LENGHT && Regex.IsMatch(playerName, @"^[a-zA-Z0-9_-]+$");

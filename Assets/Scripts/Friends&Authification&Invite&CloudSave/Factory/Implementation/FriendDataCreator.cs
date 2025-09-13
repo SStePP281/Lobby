@@ -13,25 +13,31 @@ public class FriendDataCreator : IFriendDataCreator
         Sprite avatarSprite = null;
         bool isOnline = false;
 
+        FriendActivity friendActivity = null;
         if (presence != null)
         {
-            FriendActivity friendActivity = presence.GetActivity<FriendActivity>();
+            friendActivity = presence.GetActivity<FriendActivity>();
             if (friendActivity == null)
             {
                 friendActivity = PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id);
             }
 
-            if (friendActivity != null)
-            {
-                avatarSprite = avatarListSO.GetSpriteByIndex(friendActivity.AvatarIndex);
-
-                if (avatarSprite == null)
-                {
-                    avatarSprite = avatarListSO.GetSpriteByIndex(PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id).AvatarIndex);
-                }
-            }
-
             isOnline = presence.Availability == Availability.Online;
+        }
+
+        if (friendActivity == null)
+        {
+            friendActivity = PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id);
+        }
+
+        if (friendActivity != null)
+        {
+            avatarSprite = avatarListSO.GetSpriteByIndex(friendActivity.AvatarIndex);
+
+            if (avatarSprite == null)
+            {
+                avatarSprite = avatarListSO.GetSpriteByIndex(PlayerDataManager.Instance.GetFriendActivity(relationship.Member.Id).AvatarIndex);
+            }
         }
 
         return new FriendData

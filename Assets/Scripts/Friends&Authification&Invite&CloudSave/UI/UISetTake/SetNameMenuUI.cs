@@ -19,6 +19,12 @@ public class SetNameMenuUI : SystemWindowTrigger
 
     private void SetNewName()
     {
+        if (!AuthenticationServiceManager.Instance.CheckValidPlayerName(nameField.text))
+        {
+            InformationUI.Instance.Show(AuthenticationServiceManager.Instance.GetPlayerNameValidParam());
+            return;
+        }
+
         if (AuthenticationServiceManager.Instance.TrySetNewPlayrName(nameField.text, AuthenticationServiceManager_TrySetNewPlayrName_Callback))
         {
             InformationUI.Instance.Show("Wait..." , false);

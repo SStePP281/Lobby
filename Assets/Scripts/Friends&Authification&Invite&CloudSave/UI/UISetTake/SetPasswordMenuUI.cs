@@ -20,6 +20,12 @@ public class SetPasswordMenuUI : SystemWindowTrigger
 
     private void SetNewPassword()
     {
+        if (AuthenticationServiceManager.Instance.CheckValidPassword(newPasswordField.text))
+        {
+            InformationUI.Instance.Show(AuthenticationServiceManager.Instance.GetPasswordValidParam());
+            return;
+        }
+
         if (AuthenticationServiceManager.Instance.TrySetNewPassword(oldPasswordField.text, newPasswordField.text,          
                                                   AuthenticationServiceManager_TrySetNewPassword_Callback))
         {

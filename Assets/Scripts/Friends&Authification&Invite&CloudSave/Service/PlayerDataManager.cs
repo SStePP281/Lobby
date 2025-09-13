@@ -33,6 +33,7 @@ public class PlayerDataManager : IDisposable
 
     private PlayerDataManager()
     {
+        myFriendActivity = new FriendActivity();
         myFriendDict = new Dictionary<string, FriendActivity>();
 
         FriendServiceManager.Instance.OnInitialize += FriendServiceManager_OnInitialize;
