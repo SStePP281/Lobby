@@ -37,6 +37,9 @@ public class FriendServiceManager : IDisposable
 
     private FriendServiceManager()
     {
+        AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+
         OnInitialize += FriendServiceManager_OnInitialize;
 
         _ = InitializeAsync();
@@ -44,20 +47,15 @@ public class FriendServiceManager : IDisposable
 
     public void SetFriendDataCreator(IFriendDataCreator creator) => friendDataCreator = creator;
 
-    public async Task InitializeAsync()
+    private async Task InitializeAsync()
     {
         if (!UnityServicesManager.Instance.IsInitialized())
         {
-            await UnityServicesManager.Instance.Initialize();
-
-            Debug.Log("Friend service manager initialize unity service manager");
-        }
-
-        if (!AuthenticationServiceManager.Instance.IsSignedIn)
-        {
-            AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
+            UnityServicesManager.Instance.OnInitialize += UnityServicesManager_OnInitialize;
             return;
         }
+
+        if (!AuthenticationServiceManager.Instance.IsSignedIn) { return; }
 
         try
         {
@@ -342,6 +340,8 @@ public class FriendServiceManager : IDisposable
         return frinedList;
     }
 
+    public bool IsInitialize() => isInit;
+
     private void FriendsService_PresenceUpdated(IPresenceUpdatedEvent obj) => OnFriendListChanged?.Invoke();
 
     private void FriendsService_RelationshipAdded(IRelationshipAddedEvent obj) => OnFriendListChanged?.Invoke();
@@ -352,23 +352,31 @@ public class FriendServiceManager : IDisposable
 
     private void FriendServiceManager_OnInitialize()
     {
-        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
         FriendsService.Instance.PresenceUpdated += FriendsService_PresenceUpdated;
         FriendsService.Instance.RelationshipAdded += FriendsService_RelationshipAdded;
         FriendsService.Instance.RelationshipDeleted += FriendsService_RelationshipDeleted;
         FriendsService.Instance.MessageReceived += FriendsService_MessageReceived;
     }
 
+    private void AuthenticationServiceManager_OnSignIn()
+    {
+        if (isInit) { return; }
+
+        _ = InitializeAsync();
+    }
+
     private void AuthenticationServiceManager_OnSignOut()
     {
         isInit = false;
+
+        _ = FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Offline);
     }
 
-    private void AuthenticationServiceManager_OnSignIn()
+    private void UnityServicesManager_OnInitialize()
     {
         _ = InitializeAsync();
 
-        AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
+        UnityServicesManager.Instance.OnInitialize -= UnityServicesManager_OnInitialize;
     }
 
     public void Dispose()
@@ -385,6 +393,7 @@ public class FriendServiceManager : IDisposable
 
         if (AuthenticationServiceManager.Instance != null)
         {
+            AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
             AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 

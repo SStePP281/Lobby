@@ -76,6 +76,14 @@ public class SignUpMenu : SystemWindowTrigger
         }
     }
 
+    private void OnDisable()
+    {
+        usernameField.text = string.Empty;
+        passwordOneField.text = string.Empty;
+        passwordTwoField.text = string.Empty;
+        playerNameField.text = string.Empty;
+    }
+
     private void OnDestroy()
     {
         if (AuthenticationServiceManager.Instance != null)

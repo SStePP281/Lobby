@@ -5,8 +5,11 @@ using UnityEngine;
 
 public class UnityServicesManager : IDisposable
 {
+    public event Action OnInitialize;
+
     private static bool isDisposing = false;
     private static UnityServicesManager instance;
+
     public static UnityServicesManager Instance
     {
         get
@@ -22,13 +25,18 @@ public class UnityServicesManager : IDisposable
         }
     }
 
-    private UnityServicesManager() {}
+    private UnityServicesManager()
+    {
+        _ = InitializeAsync();
+    }
 
-    public async Task Initialize()
+    private async Task InitializeAsync()
     {
         if (IsInitialized()) { return; }
 
         await UnityServices.InitializeAsync();
+
+        OnInitialize?.Invoke();
 
         Debug.Log("UnityServices Initialized");
     }

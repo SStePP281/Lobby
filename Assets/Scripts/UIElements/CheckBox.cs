@@ -4,19 +4,25 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(Image))]
-public class SwitchButton : MonoBehaviour, IPointerClickHandler
+public class CheckBox : MonoBehaviour, IPointerClickHandler
 {
     public UnityEvent<bool> OnStateChanged;
 
+    [Header("Reference")]
     [SerializeField] private Sprite activeSprite;
     [SerializeField] private Sprite inactiveSprite;
-    [SerializeField] private bool isActive = true;
+
+    [Header("Settings")]
+    [SerializeField] private bool startActive = true;
+    [SerializeField] private bool saveState;
 
     private Image image;
+    private bool isActive;
 
     private void Awake()
     {
         image = GetComponent<Image>();
+        isActive = startActive;
     }
 
     private void Start()
@@ -46,6 +52,14 @@ public class SwitchButton : MonoBehaviour, IPointerClickHandler
     private void UpdateImageSprite()
     {
         image.sprite = isActive ? activeSprite : inactiveSprite;
+    }
+
+    private void OnDisable()
+    {
+        if (saveState) { return; }
+
+        isActive = !startActive;
+        ToggleState();
     }
 
 #if UNITY_EDITOR

@@ -19,8 +19,8 @@ public abstract class FriendListUI : MonoBehaviour
     {
         objectPool = new ObjectPool<FriendElementUI>(friendElementFactory.CreateFriendElement, container);
 
-        FriendServiceManager.Instance.OnFriendListChanged += OnFriendListChanged;
-        PlayerDataManager.Instance.OnPlayerDataChanged += OnFriendListChanged;
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+        PlayerDataManager.Instance.OnPlayerDataChanged += PlayerDataManager_OnPlayerDataChanged;
     }
 
     private void Start()
@@ -30,8 +30,6 @@ public abstract class FriendListUI : MonoBehaviour
     }
 
     protected abstract List<FriendData> GetFriendList();
-
-    protected virtual void OnFriendListChanged() => RefreshFriendData();
 
     public void RefreshFriendData()
     {
@@ -91,12 +89,19 @@ public abstract class FriendListUI : MonoBehaviour
         return false;
     }
 
-
     private void HideActionMenu()
     {
         tabActionGroupUI.Hide();
         selectedPlayerID = string.Empty;
     }
+
+    private void AuthenticationServiceManager_OnSignOut()
+    {
+        objectPool.Clear();
+        selectedPlayerID = string.Empty;
+    }
+
+    protected virtual void PlayerDataManager_OnPlayerDataChanged() => RefreshFriendData();
 
     private void OnDisable()
     {
@@ -110,14 +115,14 @@ public abstract class FriendListUI : MonoBehaviour
 
     protected virtual void OnDestroy()
     {
-        if (FriendServiceManager.Instance != null)
-        {
-            FriendServiceManager.Instance.OnFriendListChanged -= OnFriendListChanged;
-        }
-
         if (PlayerDataManager.Instance != null)
         {
-            PlayerDataManager.Instance.OnPlayerDataChanged -= OnFriendListChanged;
+            PlayerDataManager.Instance.OnPlayerDataChanged -= PlayerDataManager_OnPlayerDataChanged;
+        }
+
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 
         if (MenuInput.Instance != null)

@@ -62,6 +62,12 @@ public class SignInMenu : SystemWindowTrigger
         }
     }
 
+    private void OnDisable()
+    {
+        usernameField.text = string.Empty;
+        passwordField.text = string.Empty;
+    }
+
     private void OnDestroy()
     {
         if (AuthenticationServiceManager.Instance != null)

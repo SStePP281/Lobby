@@ -14,9 +14,8 @@ public class UserLocalInformationUI : MonoBehaviour
     private void Awake()
     {
         PlayerDataManager.Instance.OnPlayerDataChanged += PlayerDataManager_OnPlayerDataChanged;
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
     }
-
-    private void PlayerDataManager_OnPlayerDataChanged() => RefreshUserData();
 
     private void RefreshUserData()
     {
@@ -30,11 +29,24 @@ public class UserLocalInformationUI : MonoBehaviour
         }
     }
 
+    private void AuthenticationServiceManager_OnSignOut()
+    {
+        userAvatarImage.sprite = null;
+        userNameText.text = string.Empty;
+    }
+
+    private void PlayerDataManager_OnPlayerDataChanged() => RefreshUserData();
+
     private void OnDestroy()
     {
         if (PlayerDataManager.Instance != null)
         {
             PlayerDataManager.Instance.OnPlayerDataChanged -= PlayerDataManager_OnPlayerDataChanged;
+        }
+
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
     }
 }

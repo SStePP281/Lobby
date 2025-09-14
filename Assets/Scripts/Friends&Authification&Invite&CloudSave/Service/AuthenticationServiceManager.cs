@@ -13,6 +13,8 @@ public class AuthenticationServiceManager : IDisposable
     public event Action<string> OnSignInFailed;
     public event Action<string> OnSingUpFailed;
 
+    private event Action OnInititialize;
+
     public bool IsSignedIn { get; private set; }
 
     private static bool isDisposing = false;
@@ -34,18 +36,17 @@ public class AuthenticationServiceManager : IDisposable
 
     private AuthenticationServiceManager()
     {
+        OnInititialize += AuthenticationServiceManager_OnInitialize;
         OnSignIn += AuthenticationServiceManager_OnSignIn;
 
         _ = InitializeAsync();
     }
 
-    public async Task InitializeAsync()
+    private async Task InitializeAsync()
     {
         if (!UnityServicesManager.Instance.IsInitialized())
         {
-            await UnityServicesManager.Instance.Initialize();
-
-            Debug.Log("Authentication service manager initialize unity service manager");
+            UnityServicesManager.Instance.OnInitialize += UnityServicesManager_OnInitialize;
         }
 
         if (!AuthenticationService.Instance.IsSignedIn)
@@ -55,6 +56,8 @@ public class AuthenticationServiceManager : IDisposable
                 await SignInAuto();
             }
         }
+
+        OnInititialize?.Invoke();
     }
 
     public bool TrySingIn(string username, string password, Action<bool,string> callback = null)
@@ -118,13 +121,13 @@ public class AuthenticationServiceManager : IDisposable
     {
         if (!IsSignedIn) { return; }
 
+        OnSignOut?.Invoke();
+
         AuthenticationService.Instance.SignOut();
 
         AuthenticationService.Instance.ClearSessionToken();
 
         IsSignedIn = false;
-
-        OnSignOut?.Invoke();
     }
 
     public void RefreshUserData()
@@ -356,20 +359,36 @@ public class AuthenticationServiceManager : IDisposable
 
     private void AuthenticationService_PlayerInfoChanged(PlayerInfo playerInfo) => OnPlayerInfoChanged?.Invoke();
 
+    private void AuthenticationServiceManager_OnInitialize()
+    {
+        AuthenticationService.Instance.PlayerNameChanged += AuthenticationService_PlayerNameChanged;
+        AuthenticationService.Instance.PlayerIdChanged += AuthenticationService_PlayerIdChanged;
+        AuthenticationService.Instance.PlayerInfoChanged += AuthenticationService_PlayerInfoChanged;
+    }
+
     private void AuthenticationServiceManager_OnSignIn()
     {
         IsSignedIn = true;
 
-        AuthenticationService.Instance.PlayerNameChanged += AuthenticationService_PlayerNameChanged;
-        AuthenticationService.Instance.PlayerIdChanged += AuthenticationService_PlayerIdChanged;
-        AuthenticationService.Instance.PlayerInfoChanged += AuthenticationService_PlayerInfoChanged;
-
         RefreshUserData();
+    }
+
+    private void UnityServicesManager_OnInitialize()
+    {
+        _ = InitializeAsync();
+
+        UnityServicesManager.Instance.OnInitialize -= UnityServicesManager_OnInitialize;
     }
 
     public void Dispose()
     {
+        OnInititialize -= AuthenticationServiceManager_OnInitialize;
         OnSignIn -= AuthenticationServiceManager_OnSignIn;
+
+        if (UnityServicesManager.Instance != null)
+        {
+            UnityServicesManager.Instance.OnInitialize -= UnityServicesManager_OnInitialize;
+        }
 
         AuthenticationService.Instance.PlayerNameChanged -= AuthenticationService_PlayerNameChanged;
         AuthenticationService.Instance.PlayerIdChanged -= AuthenticationService_PlayerIdChanged;
