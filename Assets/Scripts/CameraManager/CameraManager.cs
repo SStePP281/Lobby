@@ -8,14 +8,23 @@ using UnityEngine;
 public struct CameraCanvasParam
 {
     public int canvasID;
-    public Canvas targetCanvas;
+    public Vector3 targetPosition;
+    public Vector3 targetRotation;
+    public Canvas canvas;
 }
 
 public class CameraManager : MonoBehaviour
 {
+    [Header("Reference")]
     [SerializeField] private List<CameraCanvasParam> canvasList;
+    [SerializeField] private int startCanvasID;
+
+    [Header("Move_Settings")]
     [SerializeField] private float cameraMoveAmplitude = 5f;
     [SerializeField] private float duration = 1f;
+
+    [Header("Canvas_Settings")]
+    [SerializeField] private Vector3 relativeCanvasScale;
 
     private Camera mainCamera;
     private CameraCanvasParam currentCanvas;
@@ -26,12 +35,23 @@ public class CameraManager : MonoBehaviour
 
         foreach (CameraCanvasParam canvasParam in canvasList)
         {
-            if (canvasParam.targetCanvas.renderMode == RenderMode.ScreenSpaceCamera)
+            if (canvasParam.canvasID == startCanvasID)
             {
                 currentCanvas = canvasParam;
-                break;
+            }
+            else
+            {
+                canvasParam.canvas.gameObject.SetActive(false);
             }
         }
+
+        SetCorrectTransfrom(currentCanvas);
+
+        float requiredDistance = GetRequiredCameraDistance(currentCanvas.canvas, mainCamera);
+        mainCamera.transform.position = currentCanvas.targetPosition - currentCanvas.canvas.transform.forward * requiredDistance;
+        mainCamera.transform.rotation = Quaternion.Euler(currentCanvas.targetRotation);
+
+        currentCanvas.canvas.renderMode = RenderMode.ScreenSpaceOverlay;
     }
 
     public void SetNewCanvas(int targetCanvasID)
@@ -40,34 +60,56 @@ public class CameraManager : MonoBehaviour
 
         CameraCanvasParam targetCanvas = GetCameraCanvasParamByCanvasID(targetCanvasID);
 
-        currentCanvas.targetCanvas.renderMode = RenderMode.WorldSpace;
-
-        Transform targetTransform = targetCanvas.targetCanvas.transform;
-
-        float planeDistance = targetCanvas.targetCanvas.planeDistance;
-        float distance = Vector3.Distance(currentCanvas.targetCanvas.transform.position, mainCamera.transform.position);
-
-        Vector3 backPos = mainCamera.transform.position - mainCamera.transform.forward * cameraMoveAmplitude;
-
-        Vector3 targetBackPos = targetTransform.position - targetTransform.forward * (cameraMoveAmplitude + distance);
-
-        Vector3 finalPos = targetTransform.position - targetTransform.forward * planeDistance;
+        SetCorrectTransfrom(currentCanvas);
+        SetCorrectTransfrom(targetCanvas);
 
         Sequence seq = DOTween.Sequence();
 
-        seq.Append(mainCamera.transform.DOMove(backPos, duration * 0.3f).SetEase(Ease.OutQuad));
+        float distance = Vector3.Distance(mainCamera.transform.position, currentCanvas.canvas.transform.position);
 
-        seq.Append(mainCamera.transform.DOMove(targetBackPos, duration * 0.5f).SetEase(Ease.InOutSine));
-        seq.Join(mainCamera.transform.DORotateQuaternion(targetTransform.rotation, duration * 0.5f));
+        Vector3 firstPos = mainCamera.transform.position - mainCamera.transform.forward * cameraMoveAmplitude;
+        Vector3 secondPos = targetCanvas.targetPosition - targetCanvas.canvas.transform.forward * (cameraMoveAmplitude + distance);
+        float requiredDistance = GetRequiredCameraDistance(targetCanvas.canvas, mainCamera);
+        Vector3 thirdPos = targetCanvas.targetPosition - targetCanvas.canvas.transform.forward * requiredDistance;
 
-        seq.Append(mainCamera.transform.DOMove(finalPos, duration * 0.2f).SetEase(Ease.InQuad));
+        seq.Append(mainCamera.transform.DOMove(firstPos, duration * 0.2f));
+
+        seq.Append(mainCamera.transform.DOMove(secondPos, duration * 0.6f));
+        seq.Join(mainCamera.transform.DORotate(targetCanvas.targetRotation, duration * 0.6f));
+
+        seq.Append(mainCamera.transform.DOMove(thirdPos, duration * 0.2f));
 
         seq.OnComplete(() =>
         {
-            targetCanvas.targetCanvas.renderMode = RenderMode.ScreenSpaceCamera;
-            targetCanvas.targetCanvas.worldCamera = mainCamera;
+            targetCanvas.canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            targetCanvas.canvas.worldCamera = mainCamera;
+            currentCanvas.canvas.gameObject.SetActive(false);
             currentCanvas = targetCanvas;
         });
+    }
+
+    private void SetCorrectTransfrom(CameraCanvasParam canvasParam)
+    {
+        canvasParam.canvas.renderMode = RenderMode.WorldSpace;
+        canvasParam.canvas.transform.SetPositionAndRotation(canvasParam.targetPosition, Quaternion.Euler(canvasParam.targetRotation));
+        canvasParam.canvas.transform.localScale = relativeCanvasScale;
+        canvasParam.canvas.worldCamera = mainCamera;
+        canvasParam.canvas.gameObject.SetActive(true);
+    }
+
+    private float GetRequiredCameraDistance(Canvas canvas, Camera cam)
+    {
+        RectTransform rt = canvas.GetComponent<RectTransform>();
+
+        Vector2 size = Vector2.Scale(rt.rect.size, rt.lossyScale);
+
+        float halfHeight = size.y / 2f;
+
+        float halfFovRad = cam.fieldOfView * 0.5f * Mathf.Deg2Rad;
+
+        float requiredDistance = halfHeight / Mathf.Tan(halfFovRad);
+
+        return requiredDistance;
     }
 
 

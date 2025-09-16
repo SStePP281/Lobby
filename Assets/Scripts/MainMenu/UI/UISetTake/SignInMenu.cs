@@ -30,9 +30,9 @@ public class SignInMenu : SystemWindowTrigger
     {
         InformationUI.Instance.Show("Wait...", false);
 
-        RequestResultSettingsExtensions.OnFailureComplete(AuthenticationServiceManager.Instance.TrySingIn(usernameField.text, passwordField.text)
+        AuthenticationServiceManager.Instance.TrySingIn(usernameField.text, passwordField.text)
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
-, m => InformationUI.Instance.Show(m))
+            .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
     }
 
