@@ -152,6 +152,8 @@ public class HashDataManager : IDisposable
                 }
             }
         }
+
+        OnUserDataUpdate();
     }
 
     private void FriendServiceManager_OnInitialize()
@@ -160,7 +162,7 @@ public class HashDataManager : IDisposable
             .OnSuccessComplete((Item item) =>
             {
                 myFriendActivity = item.Value.GetAs<FriendActivity>();
-                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity);
+                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).Start();
                 OnPlayerDataChanged?.Invoke();
             })
             .Start();

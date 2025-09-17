@@ -13,7 +13,7 @@ public class UserLocalInformationUI : MonoBehaviour
 
     private void Awake()
     {
-        HashDataManager.Instance.OnPlayerDataChanged += PlayerDataManager_OnPlayerDataChanged;
+        HashDataManager.Instance.OnPlayerDataChanged += HashDataManager_OnPlayerDataChanged;
         AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
     }
 
@@ -35,13 +35,13 @@ public class UserLocalInformationUI : MonoBehaviour
         userNameText.text = string.Empty;
     }
 
-    private void PlayerDataManager_OnPlayerDataChanged() => RefreshUserData();
+    private void HashDataManager_OnPlayerDataChanged() => RefreshUserData();
 
     private void OnDestroy()
     {
         if (HashDataManager.Instance != null)
         {
-            HashDataManager.Instance.OnPlayerDataChanged -= PlayerDataManager_OnPlayerDataChanged;
+            HashDataManager.Instance.OnPlayerDataChanged -= HashDataManager_OnPlayerDataChanged;
         }
 
         if (AuthenticationServiceManager.Instance != null)

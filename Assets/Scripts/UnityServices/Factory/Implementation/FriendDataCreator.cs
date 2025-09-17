@@ -33,11 +33,6 @@ public class FriendDataCreator : IFriendDataCreator
         if (friendActivity != null)
         {
             avatarSprite = avatarListSO.GetSpriteByIndex(friendActivity.AvatarIndex);
-
-            if (avatarSprite == null)
-            {
-                avatarSprite = avatarListSO.GetSpriteByIndex(HashDataManager.Instance.GetFriendActivity(relationship.Member.Id).AvatarIndex);
-            }
         }
 
         return new FriendData
