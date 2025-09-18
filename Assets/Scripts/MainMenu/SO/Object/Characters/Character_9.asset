@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0c80d3dd35fc7a44f9f27f6bf99467b6, type: 3}
+  m_Name: Character_9
+  m_EditorClassIdentifier: 
+  characterName: Furry
+  characterSprite: {fileID: 21300000, guid: 4df8fac435b0e9f4f9830dac82c2f5ed, type: 3}
+  characterPrefab: {fileID: 7467068004530833624, guid: c78b81180b2cfbb48bcf3caf2c42c29d,
+    type: 3}

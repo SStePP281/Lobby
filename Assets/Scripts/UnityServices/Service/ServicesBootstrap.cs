@@ -4,7 +4,7 @@ using Zenject;
 public class ServicesBootstrap : MonoBehaviour
 {
     [Inject] private IFriendDataCreator friendDataCreator;
-    [Inject] private FriendAvatarListSO avatarListSO;
+    [Inject] private LobbyAvatarListSO avatarListSO;
 
     private void Start()
     {

@@ -4,7 +4,7 @@ using Zenject;
 
 public class FriendDataCreator : IFriendDataCreator
 {
-    [Inject] private FriendAvatarListSO avatarListSO;
+    [Inject] private LobbyAvatarListSO avatarListSO;
 
     public FriendData GetFriendPlayerData(Relationship relationship)
     {

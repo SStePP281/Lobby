@@ -25,7 +25,7 @@ public class HashDataManager : IDisposable
         }
     }
 
-    private FriendAvatarListSO avatarListSO;
+    private LobbyAvatarListSO avatarListSO;
     private FriendActivity myFriendActivity;
 
     private Dictionary<string, FriendActivity> myFriendDict;
@@ -57,7 +57,7 @@ public class HashDataManager : IDisposable
         return request;
     }
 
-    public void SetFriendAvatarListSO(FriendAvatarListSO lits) => avatarListSO = lits;
+    public void SetFriendAvatarListSO(LobbyAvatarListSO lits) => avatarListSO = lits;
 
     public string GetMyUserID() =>  AuthenticationServiceManager.Instance.GetUserId();
 
