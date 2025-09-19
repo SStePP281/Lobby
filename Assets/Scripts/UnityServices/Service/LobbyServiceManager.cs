@@ -7,14 +7,12 @@ using Unity.Services.Lobbies;
 using Unity.Services.Lobbies.Models;
 using UnityEngine;
 using Unity.Services.Friends;
+using ServiceRequest;
 
 public class LobbyServiceManager : IDisposable
 {
-    /*Const*/
     private const float HEARTBEAT_DELAY = 15.0f;
     private const float UPDATE_LOBBY_DATA_DELAY = 1.1f;
-    private const float MAX_UPDATE_REQUEST_INTERVAL = 5.0f;
-    private const int MAX_UPDATE_REQUEST_COUNT = 5;
 
     private static bool isDisposing;
     private static LobbyServiceManager instance;
@@ -32,84 +30,206 @@ public class LobbyServiceManager : IDisposable
         }
     }
 
-    /*Action*/
-    public Action OnLobbyGenerealDataUpdate;
     public Action OnLobbyDataUpdate;
 
     /*General param*/
-    private ReactiveVariable<Lobby> lobby;
+    private Lobby lobby;
 
     /*Async param*/
     private readonly SemaphoreSlim lobbySemaphore = new SemaphoreSlim(1, 1);
     private CancellationTokenSource loopsCts;
     private bool isCreatingLobby;
 
-    /*Lobby data param*/
-    private string lobbyPassword;
-    private string clientName;
-
-    /*Update param*/
-    private Queue<DateTime> lobbyUpdateTimestamps;
-    private Queue<DateTime> clientUpdateTimestamps;
-    private TimeSpan lastUpdateTime;
-
     private LobbyServiceManager()
     {
         loopsCts = new CancellationTokenSource();
 
-        lobbyUpdateTimestamps = new Queue<DateTime>();
-        clientUpdateTimestamps = new Queue<DateTime>();
-        lastUpdateTime = TimeSpan.FromSeconds(MAX_UPDATE_REQUEST_INTERVAL);
-
-        lobby = new ReactiveVariable<Lobby>(null, new LobbyEqualsComparer());
-        //lobby.OnValueChanged += Lobby_OnValueChanged;
-
         _ = FriendsService.Instance.InitializeAsync();
     }
 
-    public bool CreateLobby(Action<bool, string> callback = null)
+    public Request CreateLobby()
     {
-        if (lobby.Value != null || isCreatingLobby) { return false; }
+        Request request = new Request(async () =>
+        {
+            if (lobby != null || isCreatingLobby)
+            {
+                throw new Exception("Lobby all ready created or creating now");
+            }
 
-        _ = CreateLobbyAsync(callback);
+            await lobbySemaphore.WaitAsync();
+            try
+            {
+                if (isCreatingLobby) { return; }
+                isCreatingLobby = true;
 
-        return true;
+                Player player = GetClient();
+
+                CreateLobbyOptions createLobbyOptions = new CreateLobbyOptions
+                {
+                    Player = player,
+                    Password = LobbyServiceData.DEFAULT_LOBBY_PASSWORD,
+                    Data = new Dictionary<string, DataObject> { }
+                };
+
+                Lobby createdLobby = await LobbyService.Instance.CreateLobbyAsync("NON", LobbyServiceData.maxLobbySize, createLobbyOptions);
+                lobby = createdLobby;
+            }
+            finally
+            {
+                isCreatingLobby = false;
+                lobbySemaphore.Release();
+            }
+
+        })
+        .OnSuccessComplete(StartLobbyLoops);
+
+        return request;
     }
 
-    public bool JoinLobbyByID(string lobbyId, Action<bool, string> callback = null)
+    public Request JoinLobbyByID(string targetLobbyID)
     {
-        if (string.IsNullOrEmpty(lobbyId)) { return false; }
+        Request request = new Request(async () => 
+        {
+            if (string.IsNullOrEmpty(targetLobbyID))
+            {
+                throw new Exception("Target lobby ID is null or empty");
+            }
 
-        _ = JoinLobbyByIdAsync(lobbyId, callback);
+            if (lobby != null)
+            {
+                await LeaveFromLobby().StartAndWait();
+            }
 
-        return true;
+            await lobbySemaphore.WaitAsync();
+            try
+            {
+                Player player = GetClient();
+
+                JoinLobbyByIdOptions joinLobbyByIdOptions = new JoinLobbyByIdOptions
+                {
+                    Player = player
+                };
+
+                Lobby joinedLobby = await LobbyService.Instance.JoinLobbyByIdAsync(targetLobbyID, joinLobbyByIdOptions);
+                lobby = joinedLobby;
+
+                Debug.Log($"Join to lobby {targetLobbyID}");
+            }
+            finally
+            {
+                lobbySemaphore.Release();
+            }
+        });
+
+        return request;
     }
 
-    public bool LeaveFromLobby()
+    public Request LeaveFromLobby()
     {
-        if (lobby.Value == null) { return false; }
+        Request request = new Request(async () =>
+        {
+            if (lobby == null)
+            {
+                throw new Exception("All ready leave from lobby");
+            }
 
-        _ = LeaveFromLobbyAsync();
+            if (IsMyLobby())
+            {
+                await MigrateLobbyHost(lobby.Players[1].Id).StartAndWait();
+            }
 
-        return true;
+            await lobbySemaphore.WaitAsync();
+            try
+            {
+                string lobbyId = lobby.Id;
+                await LobbyService.Instance.RemovePlayerAsync(lobbyId, AuthenticationServiceManager.Instance.GetUserId());
+
+                Debug.Log($"Leave from lobby {lobbyId}");
+
+                lobby = null;
+            }
+            finally
+            {
+                StopLobbyLoops();
+
+                lobbySemaphore.Release();
+            }
+        });
+
+        return request;
     }
 
-    public bool KickClient(string clientID)
+    public Request KickClientFromLobby(string clientID)
     {
-        if (!IsMyLobby() || string.IsNullOrEmpty(clientID) || clientID == AuthenticationServiceManager.Instance.GetUserId()) { return false; }
+        Request request = new Request(async () =>
+        {
+            if (!IsMyLobby())
+            {
+                throw new Exception("You can't kick if you aren't a leader");
+            }
 
-        _ = KickClientFromLobbyAsync(clientID);
+            if (string.IsNullOrEmpty(clientID))
+            {
+                throw new Exception("Kicked player has null ID");
+            }
 
-        return true;
+            if (clientID == AuthenticationServiceManager.Instance.GetUserId())
+            {
+                throw new Exception("You can't kick myself");
+            }
+
+            await LobbyService.Instance.RemovePlayerAsync(lobby.Id, clientID);
+
+            Debug.Log("Kick client from lobby: " + clientID);
+        });
+
+        return request;
     }
 
-    public bool SetNewLobbyHost(string clientID)
+    public Request MigrateLobbyHost(string clientID)
     {
-        if (!IsMyLobby() || string.IsNullOrEmpty(clientID) || clientID == AuthenticationServiceManager.Instance.GetUserId()) { return false; }
+        Request request = new Request(async () =>
+        {
+            if (!IsMyLobby())
+            {
+                throw new Exception("You can't migrate host");
+            }
 
-        _ = MigrateLobbyHostAsync(clientID);
+            if (string.IsNullOrEmpty(clientID))
+            {
+                throw new Exception("Target host clien has null ID");
+            }
 
-        return true;
+            if (clientID == AuthenticationServiceManager.Instance.GetUserId())
+            {
+                throw new Exception("You all ready host");
+            }
+
+            if (!lobby.Players.Any(p => p.Id == clientID))
+            {
+                throw new Exception("Target new host id not in lobby");
+            }
+
+            await lobbySemaphore.WaitAsync();
+            try
+            {
+                UpdateLobbyOptions updateLobbyOptions = new UpdateLobbyOptions
+                {
+                    HostId = clientID
+                };
+
+                Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(lobby.Id, updateLobbyOptions);
+                lobby = updatedLobby;
+
+                Debug.Log("Set new lobby host: " + lobby.HostId);
+            }
+            finally
+            {
+                lobbySemaphore.Release();
+            }
+        });
+
+        return request;
     }
 
     private void StartLobbyLoops()
@@ -124,176 +244,6 @@ public class LobbyServiceManager : IDisposable
     private void StopLobbyLoops()
     {
         loopsCts?.Cancel();
-    }
-
-    private async Task CreateLobbyAsync(Action<bool, string> callback = null)
-    {
-        await lobbySemaphore.WaitAsync();
-        try
-        {
-            if (isCreatingLobby) { return; }
-            isCreatingLobby = true;
-
-            Player player = GetClient();
-            lobbyPassword = LobbyData.DEFAULT_LOBBY_PASSWORD;
-
-            CreateLobbyOptions createLobbyOptions = new CreateLobbyOptions
-            {
-                Player = player,
-                Password = lobbyPassword,
-                Data = new Dictionary<string, DataObject>
-                {
-                    {LobbyData.GAME_ONLINE_TYPE_FIELD, new DataObject(DataObject.VisibilityOptions.Public, LobbyGameManager.Instance.IsOnlineGame().ToString()) },
-                    {LobbyData.GAME_MAP_FIELD, new DataObject(DataObject.VisibilityOptions.Public, LobbyGameManager.Instance.GetLobbyMapDataSOIndex(LobbyGameManager.Instance.GetCurrentLobbbyMapDataSo()).ToString()) }
-                }
-            };
-
-            try
-            {
-                Lobby createdLobby = await LobbyService.Instance.CreateLobbyAsync("NON", LobbyData.maxLobbySize, createLobbyOptions);
-                lobby.Value = createdLobby;
-
-                Debug.Log("Create lobby with code: " + lobby.Value.LobbyCode);
-
-                StartLobbyLoops();
-
-                callback?.Invoke(true, string.Empty);
-            }
-            catch (LobbyServiceException e)
-            {
-                Debug.Log(e);
-
-                callback?.Invoke(false, e.Message);
-            }
-            catch (Exception e)
-            {
-                Debug.Log(e);
-
-                callback?.Invoke(false, e.Message);
-            }
-        }
-        finally
-        {
-            isCreatingLobby = false;
-            lobbySemaphore.Release();
-        }
-    }
-
-    private async Task JoinLobbyByIdAsync(string lobbyId, Action<bool, string> callback = null)
-    {
-        if (lobby.Value != null)
-        {
-            await LeaveFromLobbyAsync();
-        }
-
-        await lobbySemaphore.WaitAsync();
-        try
-        {
-            Player player = GetClient();
-            JoinLobbyByIdOptions joinLobbyByIdOptions = new JoinLobbyByIdOptions
-            {
-                Player = player
-            };
-
-            try
-            {
-                await LobbyService.Instance.JoinLobbyByIdAsync(lobbyId, joinLobbyByIdOptions);
-
-                Debug.Log($"Join to lobby {lobbyId}");
-
-                callback?.Invoke(true, string.Empty);
-            }
-            catch (LobbyServiceException e)
-            {
-                Debug.Log(e);
-
-                callback?.Invoke(false, e.Message);
-            }
-        }
-        finally
-        {
-            lobbySemaphore.Release();
-        }
-    }
-
-    private async Task LeaveFromLobbyAsync()
-    {
-        await lobbySemaphore.WaitAsync();
-        try
-        {
-            if (IsMyLobby())
-            {
-                await MigrateLobbyHostAsync(lobby.Value.Players[1].Id);
-            }
-
-            try
-            {
-                string lobbyId = lobby.Value.Id;
-                await LobbyService.Instance.RemovePlayerAsync(lobbyId, AuthenticationServiceManager.Instance.GetUserId());
-
-                Debug.Log($"Leave from lobby {lobbyId}");
-
-                lobby.Value = null;
-            }
-            catch (LobbyServiceException e)
-            {
-                Debug.Log(e);
-            }
-        }
-        finally
-        {
-            lobbySemaphore.Release();
-        }
-    }
-
-    private async Task MigrateLobbyHostAsync(string newHostId)
-    {
-        if (!lobby.Value.Players.Any(p => p.Id == newHostId)) { return; }
-
-        await lobbySemaphore.WaitAsync();
-        try
-        {
-            try
-            {
-                Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(lobby.Value.Id, new UpdateLobbyOptions
-                {
-                    HostId = newHostId,
-                });
-                lobby.Value = updatedLobby;
-
-                Debug.Log("Set new lobby host: " + lobby.Value.HostId);
-            }
-            catch (LobbyServiceException e)
-            {
-                Debug.Log(e);
-            }
-        }
-        finally
-        {
-            lobbySemaphore.Release();
-        }
-    }
-
-    private async Task KickClientFromLobbyAsync(string clientId)
-    {
-        await lobbySemaphore.WaitAsync();
-        try
-        {
-            try
-            {
-                await LobbyService.Instance.RemovePlayerAsync(lobby.Value.Id, clientId);
-
-                Debug.Log("Kick client from lobby: " + clientId);
-            }
-            catch (LobbyServiceException e)
-            {
-                Debug.Log(e);
-            }
-        }
-        finally
-        {
-            lobbySemaphore.Release();
-        }
     }
 
     private async Task SendHeartbeatLobby(CancellationToken ct)
@@ -311,9 +261,9 @@ public class LobbyServiceManager : IDisposable
                 await lobbySemaphore.WaitAsync(ct);
                 try
                 {
-                    if (lobby.Value != null)
+                    if (lobby != null)
                     {
-                        await LobbyService.Instance.SendHeartbeatPingAsync(lobby.Value.Id);
+                        await LobbyService.Instance.SendHeartbeatPingAsync(lobby.Id);
                     }
                 }
                 catch (LobbyServiceException e)
@@ -326,7 +276,7 @@ public class LobbyServiceManager : IDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (Exception)
         {
 
         }
@@ -346,12 +296,12 @@ public class LobbyServiceManager : IDisposable
 
                 if (ct.IsCancellationRequested) { break; }
 
-                if (lobby.Value == null) { break; }
+                if (lobby == null) { break; }
 
                 await lobbySemaphore.WaitAsync(ct);
                 try
                 {
-                    Lobby updatedLobby = await LobbyService.Instance.GetLobbyAsync(lobby.Value.Id);
+                    Lobby updatedLobby = await LobbyService.Instance.GetLobbyAsync(lobby.Id);
 
                     if (updatedLobby != null)
                     {
@@ -368,7 +318,7 @@ public class LobbyServiceManager : IDisposable
                         break;
                     }
 
-                    lobby.Value = updatedLobby;
+                    lobby = updatedLobby;
                     OnLobbyDataUpdate?.Invoke();
                 }
                 catch (LobbyServiceException e)
@@ -397,17 +347,15 @@ public class LobbyServiceManager : IDisposable
     {
         return new Player(AuthenticationServiceManager.Instance.GetUserId(), null, new Dictionary<string, PlayerDataObject>
         {
-            { LobbyData.PLAYER_NAME_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, AuthenticationServiceManager.Instance.GetPlayerName())},
-            { LobbyData.PLAYER_CHARACTER_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, LobbyCharacterManager.Instance.GetCurrentClientCharacterIndex().ToString()) },
-            { LobbyData.READY_FLAG_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, LobbyGameManager.Instance.IsClientReady().ToString())}
+            { LobbyServiceData.PLAYER_CHARACTER_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, HashDataManager.Instance.GetMyCharacterData().CharacterIndex.ToString()) },
         });
     }
 
-    public bool IsLobbyCreated() => lobby.Value != null;
+    public bool IsLobbyCreated() => lobby != null;
 
-    public string GetLobbyId() => lobby.Value != null ? lobby.Value.Id : string.Empty;
+    public string GetLobbyId() => lobby != null ? lobby.Id : string.Empty;
 
-    public bool IsMyLobby() => lobby.Value != null && lobby.Value.HostId == AuthenticationServiceManager.Instance.GetUserId();
+    public bool IsMyLobby() => lobby != null && lobby.HostId == AuthenticationServiceManager.Instance.GetUserId();
 
     public void Dispose()
     {
@@ -416,147 +364,5 @@ public class LobbyServiceManager : IDisposable
         instance = null;
 
         loopsCts?.Cancel();
-
-        //lobby.OnValueChanged -= Lobby_OnValueChanged;
     }
 }
-
-//private bool CanSendRequest(Queue<DateTime> timestamps)
-//{
-//    var now = DateTime.UtcNow;
-
-//    while (timestamps.Count > 0 && (now - timestamps.Peek()) > lastUpdateTime)
-//    {
-//        timestamps.Dequeue();
-//    }
-
-//    if (timestamps.Count >= MAX_UPDATE_REQUEST_COUNT)
-//    {
-//        return false;
-//    }
-
-//    timestamps.Enqueue(now);
-//    return true;
-//}
-
-//public void SetClientData(string dataField, string data) => _ = UpdateClientData(dataField, data);
-
-//public void SetLobbyData(string dataField, string data) => _ = UpdateLobbyData(dataField, data);
-
-///*Invoke func*/
-//private void Lobby_OnValueChanged(Lobby priviouse, Lobby currnet) => OnLobbyGenerealDataUpdate?.Invoke();
-
-//private async Task UpdateClientName(string newClientName)
-//{
-//    if (string.IsNullOrEmpty(newClientName)) { newClientName = "Guest" + AuthenticationService.Instance.PlayerId.Substring(0, 5); }
-
-//    if (newClientName == clientName) { return; }
-
-//    await lobbySemaphore.WaitAsync();
-//    try
-//    {
-//        UpdatePlayerOptions updatePlayerOptions = new UpdatePlayerOptions
-//        {
-//            Data = new Dictionary<string, PlayerDataObject>
-//            {
-//                {LobbyData.PLAYER_NAME_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, newClientName)}
-//            }
-//        };
-
-//        try
-//        {
-//            Lobby updatedLobby = await LobbyService.Instance.UpdatePlayerAsync(lobby.Value.Id, AuthenticationServiceManager.Instance.GetUserId(), updatePlayerOptions);
-//            lobby.Value = updatedLobby;
-
-//            clientName = newClientName;
-
-//            Debug.Log("Set new name in lobby: " + clientName);
-//        }
-//        catch (LobbyServiceException e)
-//        {
-//            Debug.Log(e);
-//        }
-//    }
-//    finally
-//    {
-//        lobbySemaphore.Release();
-//    }
-//}
-
-//public async Task UpdateLobbyData(string dataField, string data)
-//{
-//    if (string.IsNullOrEmpty(dataField) || string.IsNullOrEmpty(data)) { return; }
-//    if (lobby.Value == null) { return; }  
-//    if (!CanSendRequest(clientUpdateTimestamps))
-//    {
-//        Debug.Log("Lobby update request skipped due to rate limit.");
-//        return;
-//    }
-
-//    await lobbySemaphore.WaitAsync();
-//    try
-//    {
-//        try
-//        {
-//            UpdateLobbyOptions updateLobbyOptions = new UpdateLobbyOptions
-//            {
-//                Data = new Dictionary<string, DataObject>
-//                {
-//                    {dataField, new DataObject(DataObject.VisibilityOptions.Public, data)}
-//                }
-//            };
-
-//            Lobby updatedLobby = await LobbyService.Instance.UpdateLobbyAsync(lobby.Value.Id, updateLobbyOptions);
-//            lobby.Value = updatedLobby;
-
-//            Debug.Log($"Update lobby {dataField} with {data}");
-//        }
-//        catch (LobbyServiceException e)
-//        {
-//            Debug.Log(e);
-//        }
-//    }
-//    finally
-//    {
-//        lobbySemaphore.Release();
-//    }
-//}
-
-//public async Task UpdateClientData(string dataField, string data)
-//{
-//    if (string.IsNullOrEmpty(dataField) || string.IsNullOrEmpty(data)) { return; }
-//    if (lobby.Value == null) { return; }
-//    if (!CanSendRequest(lobbyUpdateTimestamps)) 
-//    {
-//        Debug.Log("Lobby update request skipped due to rate limit.");
-//        return;
-//    }
-
-//    await lobbySemaphore.WaitAsync();
-//    try
-//    {
-//        try
-//        {
-//            UpdatePlayerOptions updatePlayerOptions = new UpdatePlayerOptions
-//            {
-//                Data = new Dictionary<string, PlayerDataObject>
-//                {
-//                    {dataField, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, data)}
-//                }
-//            };
-
-//            Lobby updatedLobby = await LobbyService.Instance.UpdatePlayerAsync(lobby.Value.Id, AuthenticationService.Instance.PlayerId, updatePlayerOptions);
-//            lobby.Value = updatedLobby;
-
-//            Debug.Log($"Update client {dataField} with {data}");
-//        }
-//        catch (LobbyServiceException e)
-//        {
-//            Debug.Log(e);
-//        }
-//    }
-//    finally
-//    {
-//        lobbySemaphore.Release();
-//    }
-//}

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.UI;
 using Zenject;
@@ -17,38 +16,58 @@ public class WardrobeMenuUI : MonoBehaviour
     private List<CharacterElementUI> characterElementUIList;
 
     private int selectedCharacterIndex;
+    private int currentCharacterIndex;
 
     private void Awake()
     {
         characterElementUIList = new List<CharacterElementUI>();
 
         setNewCharacterButton.onClick.AddListener(SetNewCharacterButton_onClick);
+        HashDataManager.Instance.OnPlayerDataChanged += HashDataManager_OnPlayerDataChanged;
 
         for (int i = 0; i < lobbyCharacterSOList.List.Count; i++)
         {
             characterElementUIList.Add(CreateCharacterElement(lobbyCharacterSOList.List[i], i));
         }
 
-        characterViewUI.SetNewCharacter(selectedCharacterIndex);
-
-        HashDataManager.Instance.OnPlayerDataChanged += HashDataManager_OnPlayerDataChanged;
+        UpdateVisual();
     }
 
     private void SetNewCharacter()
     {
-        //Go to has manager
+        setNewCharacterButton.gameObject.SetActive(false);
+
+        currentCharacterIndex = selectedCharacterIndex;
+
+        CharacterData characterData = HashDataManager.Instance.GetMyCharacterData();
+        characterData.CharacterIndex = currentCharacterIndex;
+        HashDataManager.Instance.SetMyCharacterData(characterData).Start();
     }
 
     private void TryLoadCurrentCharacter()
     {
+        currentCharacterIndex = HashDataManager.Instance.GetMyCharacterData().CharacterIndex;
+        selectedCharacterIndex = currentCharacterIndex;
 
+        UpdateVisual();
+    }
+
+    private void UpdateVisual()
+    {
+        setNewCharacterButton.gameObject.SetActive(selectedCharacterIndex != currentCharacterIndex);
+
+        for (int i = 0; i < characterElementUIList.Count; i++)
+        {
+            characterElementUIList[i].SetSelected(selectedCharacterIndex == i);
+        }
+
+        characterViewUI.SetNewCharacter(selectedCharacterIndex);
     }
 
     private void CharacterElementUI_OnClick(int characterIndex)
     {
         selectedCharacterIndex = characterIndex;
-
-        characterViewUI.SetNewCharacter(selectedCharacterIndex);
+        UpdateVisual();
     }
 
     private void SetNewCharacterButton_onClick() => SetNewCharacter();
@@ -64,5 +83,13 @@ public class WardrobeMenuUI : MonoBehaviour
     private void OnEnable()
     {
         TryLoadCurrentCharacter();
+    }
+
+    private void OnDestroy()
+    {
+        if (HashDataManager.Instance != null)
+        {
+            HashDataManager.Instance.OnPlayerDataChanged -= HashDataManager_OnPlayerDataChanged;
+        }
     }
 }

@@ -6,8 +6,10 @@ using UnityEngine.UI;
 
 public class CharacterElementUI : BaseButtonSelector
 {
+    [Header("Reference")]
     [SerializeField] private Image avatarImage;
     [SerializeField] private TextMeshProUGUI chracterNameText;
+    [SerializeField] private Outline selectedOutline;
 
     private event Action<int> OnAvatarClick;
     private int index;
@@ -30,4 +32,6 @@ public class CharacterElementUI : BaseButtonSelector
 
         OnAvatarClick?.Invoke(index);
     }
+
+    public void SetSelected(bool isSelected) => selectedOutline.enabled = isSelected;
 }

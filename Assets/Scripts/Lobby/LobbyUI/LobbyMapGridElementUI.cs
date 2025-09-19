@@ -4,22 +4,22 @@ using UnityEngine.UI;
 
 public class LobbyMapGridElementUI : MonoBehaviour
 {
-    [SerializeField] private Button mapButton;
-    [SerializeField] private Image mapImageImage;
-    [SerializeField] private TextMeshProUGUI mapNameName;
+    //[SerializeField] private Button mapButton;
+    //[SerializeField] private Image mapImageImage;
+    //[SerializeField] private TextMeshProUGUI mapNameName;
 
-    private LobbyMapDataSO lobbyMapDataSO;
+    //private LobbyMapDataSO lobbyMapDataSO;
 
-    private void Awake()
-    {
-        mapButton.onClick.AddListener(() => { LobbyGameManager.Instance.SetNewMap(lobbyMapDataSO); });
-    }
+    //private void Awake()
+    //{
+    //    mapButton.onClick.AddListener(() => { LobbySevriceManager.Instance.SetNewMap(lobbyMapDataSO); });
+    //}
 
-    public void Initialize(LobbyMapDataSO lobbyMapDataSO)
-    {
-        this.lobbyMapDataSO = lobbyMapDataSO;
+    //public void Initialize(LobbyMapDataSO lobbyMapDataSO)
+    //{
+    //    this.lobbyMapDataSO = lobbyMapDataSO;
 
-        mapImageImage.sprite = lobbyMapDataSO.sceneView;
-        mapNameName.text = lobbyMapDataSO.sceneViewName;
-    }
+    //    mapImageImage.sprite = lobbyMapDataSO.sceneView;
+    //    mapNameName.text = lobbyMapDataSO.sceneViewName;
+    //}
 }

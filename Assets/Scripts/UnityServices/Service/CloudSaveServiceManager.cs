@@ -5,6 +5,7 @@ using SaveOptions = Unity.Services.CloudSave.Models.Data.Player.SaveOptions;
 using Unity.Services.CloudSave.Models.Data.Player;
 using System.Collections.Generic;
 using ServiceRequest;
+using UnityEngine;
 
 public class CloudSaveServiceManager : IDisposable
 {
@@ -25,7 +26,11 @@ public class CloudSaveServiceManager : IDisposable
 
     private CloudSaveServiceManager() { }
 
-    public Request<Item> LoadPlayerData(string dataField, string playerID = null)
+    public Request<Item> LoadPlayerData(string dataField, string playerID) => LoadPlayerData(dataField, true, playerID);
+
+    public Request<Item> LoadPlayerData(string dataField, bool isPublicData) => LoadPlayerData(dataField, isPublicData, AuthenticationServiceManager.Instance.GetUserId());
+
+    private Request<Item> LoadPlayerData(string dataField, bool isPublicData, string playerID)
     {
         Request<Item> request = new Request<Item>(async () => 
         {
@@ -39,20 +44,17 @@ public class CloudSaveServiceManager : IDisposable
                 throw new Exception("Invalid data key");
             }
 
-            Dictionary<string, Item> loadData = new Dictionary<string, Item>();
+            HashSet<string> loadField = new HashSet<string>() { dataField };
+            Dictionary<string, Item> loadData;
 
-            LoadOptions loadOptions = null;
-
-            if (string.IsNullOrEmpty(playerID))
+            if (isPublicData)
             {
-                loadOptions = new LoadOptions(new PublicReadAccessClassOptions(AuthenticationServiceManager.Instance.GetUserId()));
+                loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(loadField, new LoadOptions(new PublicReadAccessClassOptions(playerID)));
             }
             else
             {
-                loadOptions = new LoadOptions(new PublicReadAccessClassOptions(playerID));
+                loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(loadField);
             }
-
-            loadData = await CloudSaveService.Instance.Data.Player.LoadAsync(new HashSet<string>() { dataField }, loadOptions);
 
             if (loadData.TryGetValue(dataField, out Item result))
             {
@@ -87,19 +89,17 @@ public class CloudSaveServiceManager : IDisposable
                 throw new Exception("Invalid save item");
             }
 
-            SaveOptions saveOptions;
+            Dictionary<string, object> saveData = new Dictionary<string, object>() { { dataField, saveItem } };
             if (isPublicData)
             {
-                saveOptions = new SaveOptions(new PublicWriteAccessClassOptions());
+                await CloudSaveService.Instance.Data.Player.SaveAsync(saveData, new SaveOptions(new PublicWriteAccessClassOptions()));
+                Debug.Log($"Save public data: {dataField}");
             }
             else
             {
-                saveOptions = new SaveOptions();
+                await CloudSaveService.Instance.Data.Player.SaveAsync(saveData);
+                Debug.Log($"Save private data: {dataField}");
             }
-
-            Dictionary<string, object> saveData = new Dictionary<string, object>() { { dataField, saveItem } };
-
-            await CloudSaveService.Instance.Data.Player.SaveAsync(saveData, saveOptions);
         });
 
         return request;

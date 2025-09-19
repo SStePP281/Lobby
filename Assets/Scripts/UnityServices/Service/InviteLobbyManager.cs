@@ -121,13 +121,9 @@ public class InviteLobbyManager : IDisposable
         }
         else
         {
-            LobbyServiceManager.Instance.CreateLobby((bool succes, string e) => 
-            { 
-                if (succes) 
-                { 
-                    OnLobbyInvityRespone(inviteResponse); 
-                } 
-            });
+            LobbyServiceManager.Instance.CreateLobby()
+                                        .OnSuccessComplete(() => OnLobbyInvityRespone(inviteResponse))
+                                        .Start();
         }
     }
 

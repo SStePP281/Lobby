@@ -14,7 +14,7 @@ public class LobbyMapDataSOComparer : IEqualityComparer<LobbyMapDataSO>
 
     public int GetHashCode(LobbyMapDataSO obj)
     {
-        return HashCode.Combine(obj.sceneViewName, obj.sceneView, obj.gameName);
+        return HashCode.Combine(obj.sceneViewName, obj.sceneView);
     }
 }
 
@@ -23,5 +23,4 @@ public class LobbyMapDataSO : ScriptableObject
 {
     public string sceneViewName;
     public Sprite sceneView;
-    public GameName gameName;
 }
