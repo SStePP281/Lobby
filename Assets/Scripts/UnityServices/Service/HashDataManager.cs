@@ -27,12 +27,14 @@ public class HashDataManager : IDisposable
 
     private LobbyAvatarListSO avatarListSO;
     private FriendActivity myFriendActivity;
+    private CharacterData myCharacterData;
 
     private Dictionary<string, FriendActivity> myFriendDict;
 
     private HashDataManager()
     {
         myFriendActivity = new FriendActivity();
+        myCharacterData = new CharacterData();
         myFriendDict = new Dictionary<string, FriendActivity>();
 
         FriendServiceManager.Instance.OnUserDataUpdate += OnUserDataUpdate;
@@ -51,9 +53,22 @@ public class HashDataManager : IDisposable
 
             await FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).StartAndWait();
 
-            CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true);
+            CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true).Start();
         });
 
+        return request;
+    }
+
+    public Request SetMyCharacterData(CharacterData characterData)
+    {
+        Request request = new Request(async () =>
+        {
+            myCharacterData = characterData;
+
+            await CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.CHARACTER_DATA, myCharacterData, false).StartAndWait();
+        })
+        .OnSuccessComplete(() => OnPlayerDataChanged?.Invoke());
+        
         return request;
     }
 
@@ -63,9 +78,11 @@ public class HashDataManager : IDisposable
 
     public string GetMyUserName() => AuthenticationServiceManager.Instance.GetPlayerName();
 
-    public FriendActivity GetFriendActivity(string friendID) => myFriendDict.ContainsKey(friendID) ? myFriendDict[friendID] : null;
+    public FriendActivity GetFriendActivity(string friendID) => myFriendDict.ContainsKey(friendID) ? myFriendDict[friendID] : new FriendActivity();
 
     public FriendActivity GetMyFriendActivity() => myFriendActivity;
+
+    public CharacterData GetMyCharacterData() => myCharacterData;
 
     private Request LoadFriendOfflineData()
     {
@@ -109,10 +126,6 @@ public class HashDataManager : IDisposable
                             myFriendDict[friendData.FriendID] = new FriendActivity();
                         }
                     })
-                    .OnFinalyComplete(() =>
-                    {
-
-                    })
                     .StartAndWait();
             }
         });
@@ -139,7 +152,7 @@ public class HashDataManager : IDisposable
                 else
                 {
 
-                    CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, friendData.FriendID)
+                    CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, playerID: friendData.FriendID)
                         .OnSuccessComplete((Item item) => myFriendDict[friendData.FriendID] = item.Value.GetAs<FriendActivity>())
                         .Start();
                 }
@@ -153,17 +166,25 @@ public class HashDataManager : IDisposable
             }
         }
 
-        OnUserDataUpdate();
+        OnPlayerDataChanged?.Invoke();
     }
 
     private void FriendServiceManager_OnInitialize()
     {
-        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA)
+        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, true)
             .OnSuccessComplete((Item item) =>
             {
                 myFriendActivity = item.Value.GetAs<FriendActivity>();
                 FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).Start();
                 OnPlayerDataChanged?.Invoke();
+            })
+            .Start();
+
+        CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.CHARACTER_DATA, false)
+            .OnSuccessComplete((Item item) =>
+            {
+                myCharacterData = item.Value.GetAs<CharacterData>();
+                OnPlayerDataChanged?.Invoke(); 
             })
             .Start();
 

@@ -17,8 +17,8 @@ public class LobbyJoinUI : MonoBehaviour
 
     private void Awake()
     {
-        lobbyCode.characterLimit = LobbyData.maxLobbyCodeLenght;
-        lobbyPassword.characterLimit = LobbyData.maxPasswordLenght;
+        lobbyCode.characterLimit = LobbyServiceData.maxLobbyCodeLenght;
+        lobbyPassword.characterLimit = LobbyServiceData.maxPasswordLenght;
 
         tryJoinButton.onClick.AddListener(TryJoinToLobby);
     }

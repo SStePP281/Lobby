@@ -32,7 +32,10 @@ public class CameraManager : MonoBehaviour
     private void Awake()
     {
         mainCamera = Camera.main;
+    }
 
+    private void Start()
+    {
         foreach (CameraCanvasParam canvasParam in canvasList)
         {
             if (canvasParam.canvasID == startCanvasID)

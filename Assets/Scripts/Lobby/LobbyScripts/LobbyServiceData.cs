@@ -1,4 +1,4 @@
-public class LobbyData
+public class LobbyServiceData
 {
     /*Data field*/
     public const string DEFAULT_LOBBY_PASSWORD = "default_password";
