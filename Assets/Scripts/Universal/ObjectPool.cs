@@ -16,13 +16,13 @@ public class ObjectPool<T> where T : Component
         this.parent = parent;
     }
 
-    public T GetElement()
+    public T GetElement(Transform container = null)
     {
         T element;
 
         if (IsEmpty(out element))
         {
-            CreateElement(out element);
+            CreateElement(out element, container);
         }
 
         element.gameObject.SetActive(true);
@@ -43,6 +43,11 @@ public class ObjectPool<T> where T : Component
         pool.Clear();
     }
 
+    public void Hide(T element)
+    {
+        pool.Find(e => e == element).gameObject.SetActive(false);
+    }
+
     public void Hide()
     {
         foreach (T element in pool)
@@ -51,9 +56,18 @@ public class ObjectPool<T> where T : Component
         }
     }
 
-    private void CreateElement(out T element)
+    private void CreateElement(out T element, Transform container = null)
     {
-        T tempEl = createFunc(parent);
+        T tempEl;
+        if (container == null)
+        {
+            tempEl = createFunc(parent);
+        }
+        else
+        {
+            tempEl = createFunc(container);
+        }
+
         pool.Add(tempEl);
         element = tempEl;
     }

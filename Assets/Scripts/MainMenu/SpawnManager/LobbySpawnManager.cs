@@ -1,44 +1,147 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Zenject;
 
 public class LobbySpawnManager : MonoBehaviour
 {
     [Inject] private ICharacterFactory characterFactory;
+    [Inject] private ILobbyPlayerSetupFactory playerSetupFactory;
 
     [SerializeField] private List<Transform> spawnPointList;
 
-    private CharacterData currentCharacterData;
-    private Transform currentCharacter;
+    private Dictionary<string, LobbyPlayerSetup> lobbyPlayerDict;
+    private ObjectPool<LobbyPlayerSetup> objectPool;
+
+    int currentSpawnPointIndex;
 
     private void Awake()
     {
+        lobbyPlayerDict = new Dictionary<string, LobbyPlayerSetup>();
+        objectPool = new ObjectPool<LobbyPlayerSetup>((Transform a) => { return playerSetupFactory.CreatePlayerSetup(a); }, null);
+
+        AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
         HashDataManager.Instance.OnUserDataChanged += HashDataManager_OnUserDataChanged;
+        LobbyServiceManager.Instance.OnLobbyDataUpdate += LobbyServiceManager_OnLobbyDataUpdate;
     }
 
-    private void UpdateVisual()
+    private LobbyPlayerSetup CreatePlayerSetup(LobbyUserData lobbyUserData)
     {
-        CharacterData characterData = HashDataManager.Instance.GetMyCharacterData();
+        LobbyPlayerSetup lobbyPlayerSetup = objectPool.GetElement(spawnPointList[currentSpawnPointIndex]);
+        currentSpawnPointIndex++;
 
-        if (currentCharacter != null && characterData.CharacterIndex == currentCharacterData.CharacterIndex) { return; }
+        Transform character = characterFactory.CreateCharacter(lobbyUserData.CharacterIndex, lobbyPlayerSetup.GetModelContainer());
+        lobbyPlayerSetup.Initialize(lobbyUserData.UserID, lobbyUserData.CharacterIndex, character, lobbyUserData.Nickname, lobbyUserData.IsHost, lobbyUserData.IsReady);
 
-        currentCharacterData = characterData;
+        lobbyPlayerDict[lobbyUserData.UserID] = lobbyPlayerSetup;
 
-        if (currentCharacter != null)
+        return lobbyPlayerSetup;
+    }
+
+    private void UpdatePlayerCharater(LobbyUserData lobbyUserData)
+    {
+        LobbyPlayerSetup lobbyPlayerSetup = lobbyPlayerDict[lobbyUserData.UserID];
+
+        lobbyPlayerSetup.SetNickname(lobbyUserData.Nickname);
+        lobbyPlayerSetup.SetHostFlag(lobbyUserData.IsHost);
+        lobbyPlayerSetup.SetReadyFlag(lobbyUserData.IsReady);
+
+        if (lobbyPlayerSetup.CharacterIndex == lobbyUserData.CharacterIndex) { return; }
+
+        lobbyPlayerSetup.SetModel(lobbyUserData.CharacterIndex, characterFactory.CreateCharacter(lobbyUserData.CharacterIndex, lobbyPlayerSetup.GetModelContainer()));
+    }
+
+    private void DisposePlayerSetup(string userID)
+    {
+        LobbyPlayerSetup lobbyPlayerSetup = lobbyPlayerDict[userID];
+        objectPool.Hide(lobbyPlayerSetup);
+        lobbyPlayerDict.Remove(userID);
+        currentSpawnPointIndex--;
+    }
+
+    private void LobbyServiceManager_OnLobbyDataUpdate()
+    {
+        List<LobbyUserData> lobbyUserDataList = LobbyServiceManager.Instance.GetLobbyUserList();
+
+        if (lobbyUserDataList == null) { return; }
+        
+        foreach (LobbyUserData lobbyUserData in lobbyUserDataList)
         {
-            Destroy(currentCharacter.gameObject);
+            if (!lobbyPlayerDict.ContainsKey(lobbyUserData.UserID))
+            {
+                lobbyPlayerDict[lobbyUserData.UserID] = CreatePlayerSetup(lobbyUserData);
+                continue;
+            }
+
+            UpdatePlayerCharater(lobbyUserData);
         }
 
-        currentCharacter = characterFactory.CreateCharacter(currentCharacterData.CharacterIndex, spawnPointList[0]);
+        List<string> playersToRemove = new List<string>();
+
+        foreach (KeyValuePair<string, LobbyPlayerSetup> lobbyPlayers in lobbyPlayerDict)
+        {
+            if (!lobbyUserDataList.Any(p => p.UserID == lobbyPlayers.Key))
+            {
+                playersToRemove.Add(lobbyPlayers.Key);
+            }
+        }
+
+        if (playersToRemove.Count == 0) { return; }
+
+        foreach (string playerId in playersToRemove)
+        {
+            DisposePlayerSetup(playerId);
+        }
+
+        LobbyServiceManager_OnLobbyDataUpdate();
     }
 
-    private void HashDataManager_OnUserDataChanged() => UpdateVisual();
+    private void HashDataManager_OnUserDataChanged()
+    {
+        if (LobbyServiceManager.Instance.IsLobbyCreated()) { return; }
+
+        if (lobbyPlayerDict.ContainsKey(AuthenticationServiceManager.Instance.GetUserId()))
+        {
+            UpdatePlayerCharater(new LobbyUserData
+            {
+                UserID = AuthenticationServiceManager.Instance.GetUserId(),
+                Nickname = string.Empty,
+                CharacterIndex = HashDataManager.Instance.GetMyCharacterData().CharacterIndex,
+                IsHost = false,
+                IsReady = false
+            });
+        }
+    }
+
+    private void AuthenticationServiceManager_OnSignIn()
+    {
+        CreatePlayerSetup(new LobbyUserData
+        {
+            UserID = AuthenticationServiceManager.Instance.GetUserId(),
+            Nickname = string.Empty,
+            CharacterIndex = HashDataManager.Instance.GetMyCharacterData().CharacterIndex,
+            IsHost = false,
+            IsReady = false
+        });
+    }
 
     private void OnDestroy()
     {
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
+        }
+
         if (HashDataManager.Instance != null)
         {
-            HashDataManager.Instance.OnFriendDataChanged -= HashDataManager_OnUserDataChanged;
+            HashDataManager.Instance.OnUserDataChanged -= HashDataManager_OnUserDataChanged;
         }
+
+        if (LobbyServiceManager.Instance != null)
+        {
+            LobbyServiceManager.Instance.OnLobbyDataUpdate -= LobbyServiceManager_OnLobbyDataUpdate;
+        }
+
+        objectPool.Clear();
     }
 }

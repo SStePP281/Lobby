@@ -139,9 +139,7 @@ public class InviteLobbyManager : IDisposable
 
     private void OnLobbyIdMessage(LobbyIdMessage lobbyIdMessage) // Connect to lobby
     {
-        LobbyServiceManager.Instance.JoinLobbyByID(lobbyIdMessage.LobbyId);
-
-        Debug.Log($"Receive new join lobby id message, lobby id: {lobbyIdMessage.LobbyId}");
+        LobbyServiceManager.Instance.JoinLobbyByID(lobbyIdMessage.LobbyId).Start();
     }
 
     private void FriendServiceManager_OnMessageReceive(IMessageReceivedEvent message)

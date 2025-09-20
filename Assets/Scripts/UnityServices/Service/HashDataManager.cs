@@ -79,7 +79,7 @@ public class HashDataManager : IDisposable
 
     public string GetMyUserID() =>  AuthenticationServiceManager.Instance.GetUserId();
 
-    public string GetMyUserName() => AuthenticationServiceManager.Instance.GetPlayerName();
+    public string GetMyNickname() => AuthenticationServiceManager.Instance.GetPlayerName().Split("#")[0];
 
     public FriendActivity GetFriendActivity(string friendID) => myFriendDict.ContainsKey(friendID) ? myFriendDict[friendID] : new FriendActivity();
 

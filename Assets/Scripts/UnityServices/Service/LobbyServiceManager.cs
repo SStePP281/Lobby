@@ -11,8 +11,7 @@ using ServiceRequest;
 
 public class LobbyServiceManager : IDisposable
 {
-    private const float HEARTBEAT_DELAY = 15.0f;
-    private const float UPDATE_LOBBY_DATA_DELAY = 1.1f;
+    public event Action OnLobbyDataUpdate;
 
     private static bool isDisposing;
     private static LobbyServiceManager instance;
@@ -30,12 +29,10 @@ public class LobbyServiceManager : IDisposable
         }
     }
 
-    public Action OnLobbyDataUpdate;
+    private ILobbyUserDataCreator userDataCreator;
 
-    /*General param*/
     private Lobby lobby;
 
-    /*Async param*/
     private readonly SemaphoreSlim lobbySemaphore = new SemaphoreSlim(1, 1);
     private CancellationTokenSource loopsCts;
     private bool isCreatingLobby;
@@ -44,8 +41,10 @@ public class LobbyServiceManager : IDisposable
     {
         loopsCts = new CancellationTokenSource();
 
-        _ = FriendsService.Instance.InitializeAsync();
+        HashDataManager.Instance.OnUserDataChanged += HashDataManager_OnUserDataChanged;
     }
+
+    public void SetLobbyUserDataCreator(ILobbyUserDataCreator creator) => userDataCreator = creator;
 
     public Request CreateLobby()
     {
@@ -107,7 +106,8 @@ public class LobbyServiceManager : IDisposable
 
                 JoinLobbyByIdOptions joinLobbyByIdOptions = new JoinLobbyByIdOptions
                 {
-                    Player = player
+                    Player = player,
+                    Password = LobbyServiceData.DEFAULT_LOBBY_PASSWORD
                 };
 
                 Lobby joinedLobby = await LobbyService.Instance.JoinLobbyByIdAsync(targetLobbyID, joinLobbyByIdOptions);
@@ -119,7 +119,7 @@ public class LobbyServiceManager : IDisposable
             {
                 lobbySemaphore.Release();
             }
-        });
+        }).OnSuccessComplete(StartLobbyLoops);
 
         return request;
     }
@@ -150,11 +150,9 @@ public class LobbyServiceManager : IDisposable
             }
             finally
             {
-                StopLobbyLoops();
-
                 lobbySemaphore.Release();
             }
-        });
+        }).OnSuccessComplete(StopLobbyLoops);
 
         return request;
     }
@@ -232,6 +230,31 @@ public class LobbyServiceManager : IDisposable
         return request;
     }
 
+    public Request UpdatePlayerData()
+    {
+        Request request = new Request(async () => 
+        {
+            if (lobby == null)
+            {
+                throw new Exception("You not in lobby");
+            }
+
+            UpdatePlayerOptions updatePlayerOptions = new UpdatePlayerOptions
+            {
+                Data = new Dictionary<string, PlayerDataObject>
+                {
+                    { LobbyServiceData.PLAYER_NICKNAME_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, HashDataManager.Instance.GetMyNickname()) },
+                    { LobbyServiceData.PLAYER_CHARACTER_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, HashDataManager.Instance.GetMyCharacterData().CharacterIndex.ToString()) },
+                    { LobbyServiceData.PLAYER_READY_FLAG_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, false.ToString())}
+                }
+            };
+
+            await LobbyService.Instance.UpdatePlayerAsync(lobby.Id, AuthenticationServiceManager.Instance.GetUserId(), updatePlayerOptions);
+        });
+
+        return request;
+    }
+
     private void StartLobbyLoops()
     {
         loopsCts?.Cancel();
@@ -252,7 +275,7 @@ public class LobbyServiceManager : IDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(HEARTBEAT_DELAY), ct);
+                await Task.Delay(TimeSpan.FromSeconds(LobbyServiceData.HEARTBEAT_DELAY), ct);
 
                 if (ct.IsCancellationRequested) { break; }
 
@@ -292,7 +315,7 @@ public class LobbyServiceManager : IDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                await Task.Delay(TimeSpan.FromSeconds(UPDATE_LOBBY_DATA_DELAY), ct);
+                await Task.Delay(TimeSpan.FromSeconds(LobbyServiceData.UPDATE_LOBBY_DATA_DELAY), ct);
 
                 if (ct.IsCancellationRequested) { break; }
 
@@ -321,7 +344,7 @@ public class LobbyServiceManager : IDisposable
                     lobby = updatedLobby;
                     OnLobbyDataUpdate?.Invoke();
                 }
-                catch (LobbyServiceException e)
+                catch (Exception e)
                 {
                     Debug.Log(e);
 
@@ -347,7 +370,9 @@ public class LobbyServiceManager : IDisposable
     {
         return new Player(AuthenticationServiceManager.Instance.GetUserId(), null, new Dictionary<string, PlayerDataObject>
         {
+            { LobbyServiceData.PLAYER_NICKNAME_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, HashDataManager.Instance.GetMyNickname()) },
             { LobbyServiceData.PLAYER_CHARACTER_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, HashDataManager.Instance.GetMyCharacterData().CharacterIndex.ToString()) },
+            { LobbyServiceData.PLAYER_READY_FLAG_FIELD, new PlayerDataObject(PlayerDataObject.VisibilityOptions.Public, false.ToString())}
         });
     }
 
@@ -355,7 +380,25 @@ public class LobbyServiceManager : IDisposable
 
     public string GetLobbyId() => lobby != null ? lobby.Id : string.Empty;
 
-    public bool IsMyLobby() => lobby != null && lobby.HostId == AuthenticationServiceManager.Instance.GetUserId();
+    public bool IsMyLobby() => GetHostID() == AuthenticationServiceManager.Instance.GetUserId();
+
+    public string GetHostID() => lobby != null ? lobby.HostId : string.Empty;
+
+    public List<LobbyUserData> GetLobbyUserList()
+    {
+        if (lobby == null) { return null; }
+
+        List<LobbyUserData> list = new List<LobbyUserData>();
+
+        foreach (Player player in lobby.Players)
+        {
+            list.Add(userDataCreator.GetUserData(player));
+        }
+
+        return list;
+    }
+
+    private void HashDataManager_OnUserDataChanged() => UpdatePlayerData().Start();
 
     public void Dispose()
     {
@@ -364,5 +407,10 @@ public class LobbyServiceManager : IDisposable
         instance = null;
 
         loopsCts?.Cancel();
+
+        if (HashDataManager.Instance != null)
+        {
+            HashDataManager.Instance.OnUserDataChanged -= HashDataManager_OnUserDataChanged;
+        }
     }
 }
