@@ -49,7 +49,7 @@ public class FriendElementUI : MonoBehaviour, IPointerClickHandler
     {
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            OnClick?.Invoke(RectTransformUtility.WorldToScreenPoint(eventData.enterEventCamera, (transform as RectTransform).position), friendID);
+            OnClick?.Invoke(transform.position, friendID);
         }
     }
 }

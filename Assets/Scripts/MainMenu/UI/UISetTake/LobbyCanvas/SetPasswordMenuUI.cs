@@ -23,10 +23,10 @@ public class SetPasswordMenuUI : SystemWindowTrigger
     {
         InformationUI.Instance.Show("Wait...", false);
 
-        RequestResultSettingsExtensions.OnFailureComplete(AuthenticationServiceManager.Instance.TrySetNewPassword(oldPasswordField.text, newPasswordField.text)
-            .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
-, m => InformationUI.Instance.Show(m))
-            .Start();
+        AuthenticationServiceManager.Instance.TrySetNewPassword(oldPasswordField.text, newPasswordField.text)
+                                             .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
+                                             .OnFailureComplete(m => InformationUI.Instance.Show(m))
+                                             .Start();
     }
 
     private void OnDisable()

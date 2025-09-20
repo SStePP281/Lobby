@@ -23,7 +23,7 @@ public class WardrobeMenuUI : MonoBehaviour
         characterElementUIList = new List<CharacterElementUI>();
 
         setNewCharacterButton.onClick.AddListener(SetNewCharacterButton_onClick);
-        HashDataManager.Instance.OnPlayerDataChanged += HashDataManager_OnPlayerDataChanged;
+        HashDataManager.Instance.OnFriendDataChanged += HashDataManager_OnPlayerDataChanged;
 
         for (int i = 0; i < lobbyCharacterSOList.List.Count; i++)
         {
@@ -89,7 +89,7 @@ public class WardrobeMenuUI : MonoBehaviour
     {
         if (HashDataManager.Instance != null)
         {
-            HashDataManager.Instance.OnPlayerDataChanged -= HashDataManager_OnPlayerDataChanged;
+            HashDataManager.Instance.OnFriendDataChanged -= HashDataManager_OnPlayerDataChanged;
         }
     }
 }

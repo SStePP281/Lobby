@@ -81,11 +81,5 @@ public class TabActionGroupUI : TabGroupUI
         onTabClick[index].OnSelected?.Invoke();
     }
 
-    public void SetPosition(Vector2 screenPosition)
-    {
-        if (RectTransformUtility.ScreenPointToWorldPointInRectangle(canvasRect, screenPosition, mainCamera, out Vector3 worldPoint))
-        {
-            transform.position = worldPoint;
-        }
-    }
+    public void SetPosition(Vector2 screenPosition) => transform.position = screenPosition;
 }

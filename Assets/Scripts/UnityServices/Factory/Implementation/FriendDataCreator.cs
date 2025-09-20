@@ -17,15 +17,11 @@ public class FriendDataCreator : IFriendDataCreator
         if (presence != null)
         {
             friendActivity = presence.GetActivity<FriendActivity>();
-            if (friendActivity == null)
-            {
-                friendActivity = HashDataManager.Instance.GetFriendActivity(relationship.Member.Id);
-            }
 
             isOnline = presence.Availability == Availability.Online;
         }
 
-        if (friendActivity == null)
+        if (friendActivity == null || friendActivity.AvatarIndex == -1)
         {
             friendActivity = HashDataManager.Instance.GetFriendActivity(relationship.Member.Id);
         }

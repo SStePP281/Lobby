@@ -20,7 +20,7 @@ public abstract class FriendListUI : MonoBehaviour
         objectPool = new ObjectPool<FriendElementUI>(friendElementFactory.CreateFriendElement, container);
 
         AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
-        HashDataManager.Instance.OnPlayerDataChanged += PlayerDataManager_OnPlayerDataChanged;
+        HashDataManager.Instance.OnFriendDataChanged += HashDataManager_OnFriendDataChanged;
     }
 
     private void Start()
@@ -101,7 +101,7 @@ public abstract class FriendListUI : MonoBehaviour
         selectedPlayerID = string.Empty;
     }
 
-    protected virtual void PlayerDataManager_OnPlayerDataChanged() => RefreshFriendData();
+    protected virtual void HashDataManager_OnFriendDataChanged() => RefreshFriendData();
 
     private void OnDisable()
     {
@@ -117,7 +117,7 @@ public abstract class FriendListUI : MonoBehaviour
     {
         if (HashDataManager.Instance != null)
         {
-            HashDataManager.Instance.OnPlayerDataChanged -= PlayerDataManager_OnPlayerDataChanged;
+            HashDataManager.Instance.OnFriendDataChanged -= HashDataManager_OnFriendDataChanged;
         }
 
         if (AuthenticationServiceManager.Instance != null)

@@ -31,10 +31,10 @@ public class SignUpMenu : SystemWindowTrigger
     {
         InformationUI.Instance.Show("Wait...", false);
 
-        RequestResultSettingsExtensions.OnFailureComplete(AuthenticationServiceManager.Instance.TrySingUp(usernameField.text, passwordOneField.text, passwordTwoField.text, playerNameField.text)
-            .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
-, m => InformationUI.Instance.Show(m))
-            .Start();
+        AuthenticationServiceManager.Instance.TrySingUp(usernameField.text, passwordOneField.text, passwordTwoField.text, playerNameField.text)
+                                             .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
+                                             .OnFailureComplete(m => InformationUI.Instance.Show(m))
+                                             .Start();
     }
 
     private void OnDisable()

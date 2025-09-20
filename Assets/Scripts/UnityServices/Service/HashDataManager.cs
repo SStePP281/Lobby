@@ -6,7 +6,8 @@ using Unity.Services.CloudSave.Models;
 
 public class HashDataManager : IDisposable
 {
-    public event Action OnPlayerDataChanged;
+    public event Action OnFriendDataChanged;
+    public event Action OnUserDataChanged;
 
     private static bool isDisposing = false;
     private static HashDataManager instance;
@@ -37,11 +38,12 @@ public class HashDataManager : IDisposable
         myCharacterData = new CharacterData();
         myFriendDict = new Dictionary<string, FriendActivity>();
 
-        FriendServiceManager.Instance.OnUserDataUpdate += OnUserDataUpdate;
         FriendServiceManager.Instance.OnInitialize += FriendServiceManager_OnInitialize;
+        FriendServiceManager.Instance.OnUserDataUpdate += OnUserDataChangedInvoke;
         FriendServiceManager.Instance.OnFriendListChanged += FriendServiceManager_OnFriendListChanged;
 
-        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += OnUserDataUpdate;
+        AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
+        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += OnUserDataChangedInvoke;
         AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
     }
 
@@ -53,8 +55,9 @@ public class HashDataManager : IDisposable
 
             await FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).StartAndWait();
 
-            CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true).Start();
-        });
+            await CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true).StartAndWait();
+        })
+        .OnSuccessComplete(() => OnUserDataChanged?.Invoke());
 
         return request;
     }
@@ -67,8 +70,8 @@ public class HashDataManager : IDisposable
 
             await CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.CHARACTER_DATA, myCharacterData, false).StartAndWait();
         })
-        .OnSuccessComplete(() => OnPlayerDataChanged?.Invoke());
-        
+        .OnSuccessComplete(() => OnUserDataChanged?.Invoke());
+
         return request;
     }
 
@@ -133,7 +136,9 @@ public class HashDataManager : IDisposable
         return request;
     }
 
-    private void OnUserDataUpdate() => OnPlayerDataChanged?.Invoke();
+    private void OnUserDataChangedInvoke() => OnUserDataChanged?.Invoke();
+
+    private void OnFriendDataChangedInvoke() => OnFriendDataChanged?.Invoke();
 
     private void FriendServiceManager_OnFriendListChanged()
     {
@@ -166,29 +171,33 @@ public class HashDataManager : IDisposable
             }
         }
 
-        OnPlayerDataChanged?.Invoke();
+        OnFriendDataChangedInvoke();
     }
 
     private void FriendServiceManager_OnInitialize()
     {
+        FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).Start();
+
+        LoadFriendOfflineData().OnFinalyComplete(OnFriendDataChangedInvoke).Start();
+    }
+
+    private void AuthenticationServiceManager_OnSignIn()
+    {
         CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, true)
-            .OnSuccessComplete((Item item) =>
-            {
-                myFriendActivity = item.Value.GetAs<FriendActivity>();
-                FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).Start();
-                OnPlayerDataChanged?.Invoke();
-            })
-            .Start();
+        .OnSuccessComplete((Item item) =>
+        {
+            myFriendActivity = item.Value.GetAs<FriendActivity>();
+            OnUserDataChanged?.Invoke();
+        })
+        .Start();
 
         CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.CHARACTER_DATA, false)
             .OnSuccessComplete((Item item) =>
             {
                 myCharacterData = item.Value.GetAs<CharacterData>();
-                OnPlayerDataChanged?.Invoke(); 
+                OnUserDataChanged?.Invoke();
             })
             .Start();
-
-        LoadFriendOfflineData().OnFinalyComplete(() => OnPlayerDataChanged?.Invoke()).Start();
     }
 
     private void AuthenticationServiceManager_OnSignOut()
@@ -205,14 +214,15 @@ public class HashDataManager : IDisposable
 
         if (AuthenticationServiceManager.Instance != null)
         {
-            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= OnUserDataUpdate;
+            AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
+            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= OnUserDataChangedInvoke;
             AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 
         if (FriendServiceManager.Instance != null)
         {
-            FriendServiceManager.Instance.OnUserDataUpdate -= OnUserDataUpdate;
             FriendServiceManager.Instance.OnInitialize -= FriendServiceManager_OnInitialize;
+            FriendServiceManager.Instance.OnUserDataUpdate -= OnUserDataChangedInvoke;
             FriendServiceManager.Instance.OnFriendListChanged -= FriendServiceManager_OnFriendListChanged;
         }
     }
