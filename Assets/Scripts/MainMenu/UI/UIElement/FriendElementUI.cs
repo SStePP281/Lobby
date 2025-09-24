@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class FriendElementUI : MonoBehaviour, IPointerClickHandler
 {
-    public Action<Vector2, string> OnClick;
+    public event Action<Vector2, string> OnClick;
 
     [SerializeField] private TextMeshProUGUI friendNameText;
     [SerializeField] private Image avatarImage;
@@ -14,18 +14,23 @@ public class FriendElementUI : MonoBehaviour, IPointerClickHandler
     [SerializeField] private Color onlineColor;
     [SerializeField] private Color myInvityColor;
     [SerializeField] private Color invitedColor;
+    [SerializeField] private Color inLobbyColor;
 
     private string friendID;
 
-    public FriendElementUI Initaliaze(FriendData friendData)
+    public FriendElementUI Initialize(FriendData friendData)
     {
         friendID = friendData.FriendID;
 
-        friendNameText.text = friendData.FriendName.Split("#")[0];
+        friendNameText.text = friendData.FriendName;
         avatarImage.sprite = friendData.Avatar;
 
         outline.enabled = true;
-        if (friendData.Type == FriendData.RequestType.WasInvited)
+        if (friendData.InLobby)
+        {
+            outline.effectColor = inLobbyColor;
+        }
+        else if (friendData.Type == FriendData.RequestType.WasInvited)
         {
             outline.effectColor = invitedColor;
         }

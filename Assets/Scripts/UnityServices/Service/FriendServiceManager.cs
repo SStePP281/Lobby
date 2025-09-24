@@ -176,8 +176,6 @@ public class FriendServiceManager : IDisposable
         return request;
     }
 
-    public void TryForceRefresh() => _ = ForceRelationshipsRefreshAsync();
-
     public List<FriendData> GetFriendList()
     {
         List<FriendData> frinedList = new List<FriendData>();
@@ -204,6 +202,13 @@ public class FriendServiceManager : IDisposable
         }
 
         return frinedList;
+    }
+
+    public FriendData GetMyFriendData()
+    {
+        if (!isInit) { return default; }
+
+        return friendDataCreator.GetMyFriendData();
     }
 
     public bool IsInitialize() => isInit;

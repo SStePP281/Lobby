@@ -3,6 +3,7 @@ using UnityEngine;
 
 public class TabGroupUI : MonoBehaviour
 {
+    [Header("Settings")]
     [SerializeField] protected Sprite tabIdel;
     [SerializeField] protected Sprite tabHover;
     [SerializeField] protected Sprite tabActive;
@@ -17,6 +18,7 @@ public class TabGroupUI : MonoBehaviour
 
     public void Subscribe(TabButtonUI button)
     {
+        var a = this;
         if (tabButtonList == null)
         {
             tabButtonList = new List<TabButtonUI>();

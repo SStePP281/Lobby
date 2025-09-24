@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 public class ReactiveVariable<T>
 {
-    public Action<T, T> OnValueChanged;
+    public event Action<T, T> OnValueChanged;
 
     private T value;
     private IEqualityComparer<T> comparer;

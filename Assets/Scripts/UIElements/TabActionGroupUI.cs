@@ -17,21 +17,10 @@ public struct TabNameAction
 public class TabActionGroupUI : TabGroupUI
 {
     private List<TabNameAction> onTabClick;
-    private RectTransform canvasRect;
-    private Camera mainCamera;
 
     private void Awake()
     {
-        mainCamera = Camera.main;
-
         onTabClick = new List<TabNameAction>();
-
-        canvasRect = GetComponentInParent<Canvas>().transform as RectTransform;
-    }
-
-    protected override void Start()
-    {
-        base.Start();
 
         Hide();
     }

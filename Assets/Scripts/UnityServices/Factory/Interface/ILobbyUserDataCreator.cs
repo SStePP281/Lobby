@@ -1,12 +1,15 @@
 ﻿using Unity.Services.Lobbies.Models;
+using UnityEngine;
 
 public struct LobbyUserData
 {
     public string UserID;
     public string Nickname;
+    public bool IsHost;
+    public bool IsMyData;
+    public Sprite Avatar;
     public int CharacterIndex;
     public bool IsReady;
-    public bool IsHost;
 }
 
 public interface ILobbyUserDataCreator

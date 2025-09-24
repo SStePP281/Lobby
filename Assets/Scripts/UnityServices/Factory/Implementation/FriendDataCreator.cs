@@ -34,10 +34,24 @@ public class FriendDataCreator : IFriendDataCreator
         return new FriendData
         {
             FriendID = member.Id,
-            FriendName = member.Profile?.Name ?? "Unknown",
+            FriendName = member.Profile?.Name.Split("#")[0] ?? "Unknown",
             Avatar = avatarSprite,
             IsOnline = isOnline,
+            InLobby = LobbyServiceManager.Instance.LobbyContainsUser(member.Id),
             Type = InviteLobbyManager.Instance.GetRequstType(member.Id),
+        };
+    }
+
+    public FriendData GetMyFriendData()
+    {
+        return new FriendData
+        {
+            FriendID = AuthenticationServiceManager.Instance.GetUserId(),
+            FriendName = AuthenticationServiceManager.Instance.GetPlayerName(),
+            Avatar = avatarListSO.GetSpriteByIndex(HashDataManager.Instance.GetMyFriendActivity().AvatarIndex),
+            IsOnline = true,
+            InLobby = LobbyServiceManager.Instance.IsLobbyCreated(),
+            Type = FriendData.RequestType.None
         };
     }
 }

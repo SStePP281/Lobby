@@ -32,7 +32,6 @@ public class WardrobeMenuUI : MonoBehaviour
 
         UpdateVisual();
     }
-
     private void SetNewCharacter()
     {
         setNewCharacterButton.gameObject.SetActive(false);

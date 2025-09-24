@@ -23,7 +23,7 @@ public class AddFriendMenuUI : SystemWindowTrigger
         InformationUI.Instance.Show("Wait...", false);
 
         FriendServiceManager.Instance.TryAddFriend(friendIDField.text)
-            .OnSuccessComplete(() => InformationUI.Instance.Hide())
+            .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
     }

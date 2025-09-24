@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -8,6 +9,7 @@ public abstract class FriendListUI : MonoBehaviour
 {
     [Inject] private IFriendElementFactory friendElementFactory;
 
+    [Header("Reference")]
     [SerializeField] private Transform container;
     [SerializeField] protected TabActionGroupUI tabActionGroupUI;
     [SerializeField] private TextMeshProUGUI emptyText;
@@ -31,18 +33,25 @@ public abstract class FriendListUI : MonoBehaviour
 
     protected abstract List<FriendData> GetFriendList();
 
-    public void RefreshFriendData()
+    public virtual void RefreshFriendData()
     {
+        HideActionMenu();
+
         objectPool.Hide();
 
-        var friends = GetFriendList();
+        List<FriendData> friends = GetFriendList()
+            .OrderBy(f => !f.InLobby)
+            .ThenBy(f => f.Type != FriendData.RequestType.WasInvited)
+            .ThenBy(f => f.Type != FriendData.RequestType.MyInvited)
+            .ThenByDescending(f => f.IsOnline)
+            .ToList();
 
         emptyText.gameObject.SetActive(friends.Count == 0);
 
-        foreach (var friend in friends)
+        foreach (FriendData friend in friends)
         {
             var elementUI = objectPool.GetElement();
-            elementUI.Initaliaze(friend);
+            elementUI.Initialize(friend);
             elementUI.OnClick -= OnFriendElementClick;
             elementUI.OnClick += OnFriendElementClick;
         }
@@ -89,13 +98,13 @@ public abstract class FriendListUI : MonoBehaviour
         return false;
     }
 
-    private void HideActionMenu()
+    protected void HideActionMenu()
     {
         tabActionGroupUI.Hide();
         selectedPlayerID = string.Empty;
     }
 
-    private void AuthenticationServiceManager_OnSignOut()
+    protected virtual void AuthenticationServiceManager_OnSignOut()
     {
         objectPool.Clear();
         selectedPlayerID = string.Empty;

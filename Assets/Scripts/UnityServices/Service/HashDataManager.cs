@@ -2,6 +2,7 @@ using ServiceRequest;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Unity.Services.CloudSave.Models;
 
 public class HashDataManager : IDisposable
@@ -38,12 +39,14 @@ public class HashDataManager : IDisposable
         myCharacterData = new CharacterData();
         myFriendDict = new Dictionary<string, FriendActivity>();
 
+        LobbyServiceManager.Instance.OnLobbyGeneralDataUpdate += LobbyServiceManager_OnLobbyGeneralDataUpdate;
+
         FriendServiceManager.Instance.OnInitialize += FriendServiceManager_OnInitialize;
-        FriendServiceManager.Instance.OnUserDataUpdate += OnUserDataChangedInvoke;
+        FriendServiceManager.Instance.OnUserDataUpdate += FriendServiceManager_OnUserDataUpdate;
         FriendServiceManager.Instance.OnFriendListChanged += FriendServiceManager_OnFriendListChanged;
 
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
-        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += OnUserDataChangedInvoke;
+        AuthenticationServiceManager.Instance.OnPlayerInfoChanged += AuthenticationServiceManager_OnPlayerInfoChanged; ;
         AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
     }
 
@@ -53,9 +56,11 @@ public class HashDataManager : IDisposable
         {
             myFriendActivity = friendActivity;
 
-            await FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).StartAndWait();
+            Task task1 = FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).StartAndWait();
 
-            await CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true).StartAndWait();
+            Task task2 = CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, myFriendActivity, true).StartAndWait();
+
+            await Task.WhenAll(task1, task2);
         })
         .OnSuccessComplete(() => OnUserDataChanged?.Invoke());
 
@@ -68,7 +73,11 @@ public class HashDataManager : IDisposable
         {
             myCharacterData = characterData;
 
-            await CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.CHARACTER_DATA, myCharacterData, false).StartAndWait();
+            Task task1 = CloudSaveServiceManager.Instance.SavePlayerData(CloudSaveData.CHARACTER_DATA, myCharacterData, false).StartAndWait();
+
+            Task task2 = LobbyServiceManager.Instance.UpdatePlayerData(LobbyServiceData.PLAYER_CHARACTER_FIELD, myCharacterData.CharacterIndex.ToString()).StartAndWait();
+
+            await Task.WhenAll(task1, task2);
         })
         .OnSuccessComplete(() => OnUserDataChanged?.Invoke());
 
@@ -136,9 +145,9 @@ public class HashDataManager : IDisposable
         return request;
     }
 
-    private void OnUserDataChangedInvoke() => OnUserDataChanged?.Invoke();
+    public void OnFriendDataChangedInvoke() => OnFriendDataChanged?.Invoke();
 
-    private void OnFriendDataChangedInvoke() => OnFriendDataChanged?.Invoke();
+    private void LobbyServiceManager_OnLobbyGeneralDataUpdate() => OnFriendDataChangedInvoke();
 
     private void FriendServiceManager_OnFriendListChanged()
     {
@@ -174,6 +183,11 @@ public class HashDataManager : IDisposable
         OnFriendDataChangedInvoke();
     }
 
+    private void FriendServiceManager_OnUserDataUpdate()
+    {
+        OnUserDataChanged?.Invoke();
+    }
+
     private void FriendServiceManager_OnInitialize()
     {
         FriendServiceManager.Instance.TrySetPresenceActivity(myFriendActivity).Start();
@@ -200,6 +214,13 @@ public class HashDataManager : IDisposable
             .Start();
     }
 
+    private void AuthenticationServiceManager_OnPlayerInfoChanged()
+    {
+        LobbyServiceManager.Instance.UpdatePlayerData(LobbyServiceData.PLAYER_NICKNAME_FIELD, AuthenticationServiceManager.Instance.GetPlayerName()).Start();
+
+        OnUserDataChanged?.Invoke();
+    }
+
     private void AuthenticationServiceManager_OnSignOut()
     {
         myFriendActivity = new FriendActivity();
@@ -215,15 +236,20 @@ public class HashDataManager : IDisposable
         if (AuthenticationServiceManager.Instance != null)
         {
             AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
-            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= OnUserDataChangedInvoke;
+            AuthenticationServiceManager.Instance.OnPlayerInfoChanged -= AuthenticationServiceManager_OnPlayerInfoChanged;
             AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 
         if (FriendServiceManager.Instance != null)
         {
             FriendServiceManager.Instance.OnInitialize -= FriendServiceManager_OnInitialize;
-            FriendServiceManager.Instance.OnUserDataUpdate -= OnUserDataChangedInvoke;
+            FriendServiceManager.Instance.OnUserDataUpdate -= FriendServiceManager_OnUserDataUpdate;
             FriendServiceManager.Instance.OnFriendListChanged -= FriendServiceManager_OnFriendListChanged;
+        }
+
+        if (LobbyServiceManager.Instance != null)
+        {
+            LobbyServiceManager.Instance.OnLobbyGeneralDataUpdate -= LobbyServiceManager_OnLobbyGeneralDataUpdate;
         }
     }
 }

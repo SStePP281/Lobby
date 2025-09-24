@@ -21,8 +21,10 @@ public class LobbySpawnManager : MonoBehaviour
         objectPool = new ObjectPool<LobbyPlayerSetup>((Transform a) => { return playerSetupFactory.CreatePlayerSetup(a); }, null);
 
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
         HashDataManager.Instance.OnUserDataChanged += HashDataManager_OnUserDataChanged;
         LobbyServiceManager.Instance.OnLobbyDataUpdate += LobbyServiceManager_OnLobbyDataUpdate;
+        LobbyServiceManager.Instance.OnLobbyClosed += LobbyServiceManager_OnLobbyClosed;
     }
 
     private LobbyPlayerSetup CreatePlayerSetup(LobbyUserData lobbyUserData)
@@ -59,12 +61,12 @@ public class LobbySpawnManager : MonoBehaviour
         currentSpawnPointIndex--;
     }
 
-    private void LobbyServiceManager_OnLobbyDataUpdate()
+    private void RefreshData()
     {
         List<LobbyUserData> lobbyUserDataList = LobbyServiceManager.Instance.GetLobbyUserList();
 
         if (lobbyUserDataList == null) { return; }
-        
+
         foreach (LobbyUserData lobbyUserData in lobbyUserDataList)
         {
             if (!lobbyPlayerDict.ContainsKey(lobbyUserData.UserID))
@@ -93,24 +95,35 @@ public class LobbySpawnManager : MonoBehaviour
             DisposePlayerSetup(playerId);
         }
 
-        LobbyServiceManager_OnLobbyDataUpdate();
+        RefreshData();
+    }
+
+    private void LobbyServiceManager_OnLobbyDataUpdate() => RefreshData();
+
+    private void LobbyServiceManager_OnLobbyClosed()
+    {
+        RefreshData();
+
+        HashDataManager_OnUserDataChanged();
     }
 
     private void HashDataManager_OnUserDataChanged()
     {
         if (LobbyServiceManager.Instance.IsLobbyCreated()) { return; }
 
-        if (lobbyPlayerDict.ContainsKey(AuthenticationServiceManager.Instance.GetUserId()))
+        if (!lobbyPlayerDict.ContainsKey(AuthenticationServiceManager.Instance.GetUserId()))
         {
-            UpdatePlayerCharater(new LobbyUserData
-            {
-                UserID = AuthenticationServiceManager.Instance.GetUserId(),
-                Nickname = string.Empty,
-                CharacterIndex = HashDataManager.Instance.GetMyCharacterData().CharacterIndex,
-                IsHost = false,
-                IsReady = false
-            });
+            AuthenticationServiceManager_OnSignIn();
         }
+
+        UpdatePlayerCharater(new LobbyUserData
+        {
+            UserID = AuthenticationServiceManager.Instance.GetUserId(),
+            Nickname = string.Empty,
+            CharacterIndex = HashDataManager.Instance.GetMyCharacterData().CharacterIndex,
+            IsHost = false,
+            IsReady = false
+        });
     }
 
     private void AuthenticationServiceManager_OnSignIn()
@@ -125,11 +138,20 @@ public class LobbySpawnManager : MonoBehaviour
         });
     }
 
+    private void AuthenticationServiceManager_OnSignOut()
+    {
+        objectPool.Clear();
+        lobbyPlayerDict.Clear();
+
+        currentSpawnPointIndex = 0;
+    }
+
     private void OnDestroy()
     {
         if (AuthenticationServiceManager.Instance != null)
         {
             AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
         }
 
         if (HashDataManager.Instance != null)
@@ -140,6 +162,7 @@ public class LobbySpawnManager : MonoBehaviour
         if (LobbyServiceManager.Instance != null)
         {
             LobbyServiceManager.Instance.OnLobbyDataUpdate -= LobbyServiceManager_OnLobbyDataUpdate;
+            LobbyServiceManager.Instance.OnLobbyClosed -= LobbyServiceManager_OnLobbyClosed;
         }
 
         objectPool.Clear();

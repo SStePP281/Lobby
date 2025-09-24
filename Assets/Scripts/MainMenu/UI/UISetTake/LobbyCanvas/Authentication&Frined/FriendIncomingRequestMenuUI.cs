@@ -24,27 +24,29 @@ public class FriendIncomingRequestMenuUI : FriendListUI
     private void AcceptRequest()
     {
         InformationUI.Instance.Show("Wait...", false);
-        tabActionGroupUI.Hide();
 
         FriendServiceManager.Instance.TryAddFriend(selectedPlayerID)
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
+
+        HideActionMenu();
     }
 
     private void DeclineRequest()
     {
         InformationUI.Instance.Show("Wait...", false);
-        tabActionGroupUI.Hide();
 
         FriendServiceManager.Instance.TryDeleteIncomingRequest(selectedPlayerID)
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
+
+        HideActionMenu();
     }
 
     private void ShowProfile()
     {
-        tabActionGroupUI.Hide();
+        HideActionMenu();
     }
 }

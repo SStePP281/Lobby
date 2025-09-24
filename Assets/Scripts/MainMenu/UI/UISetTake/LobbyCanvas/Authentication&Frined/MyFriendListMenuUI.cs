@@ -35,29 +35,30 @@ public class MyFriendListMenuUI : FriendListUI
     {
         InviteLobbyManager.Instance.SendLobbyInviteRequest(selectedPlayerID);
 
-        tabActionGroupUI.Hide();
+        HideActionMenu();
     }
 
     private void AcceptRequst()
     {
         InviteLobbyManager.Instance.SendLobbyInviteResponse(selectedPlayerID);
 
-        tabActionGroupUI.Hide();
+        HideActionMenu();
     }
 
     private void DeleteFromFriend()
     {
         InformationUI.Instance.Show("Wait...", false);
-        tabActionGroupUI.Hide();
 
         FriendServiceManager.Instance.TryDeleteFriend(selectedPlayerID)
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
+
+        HideActionMenu();
     }
 
     private void ShowProfile()
     {
-        tabActionGroupUI.Hide();
+        HideActionMenu();
     }
 }

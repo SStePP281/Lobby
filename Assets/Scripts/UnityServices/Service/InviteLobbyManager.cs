@@ -40,13 +40,13 @@ public class InviteLobbyManager : IDisposable
     public void SendLobbyInviteRequest(string targetUserId)
     {
         FriendServiceManager.Instance.SendMessage(targetUserId, new InviteRequest(AuthenticationServiceManager.Instance.GetUserId()))
-            .OnSuccessComplete(() => 
+            .OnSuccessComplete(() =>
             {
                 myInviteRequestList[targetUserId] = DateTime.UtcNow;
 
                 _ = StartInviteTimeout(targetUserId);
 
-                FriendServiceManager.Instance.TryForceRefresh();
+                HashDataManager.Instance.OnFriendDataChangedInvoke();
             })
             .Start();
     }
@@ -56,11 +56,11 @@ public class InviteLobbyManager : IDisposable
         if (!inviteRequestList.Any(r => r == targetUserId)) { return; }
 
         FriendServiceManager.Instance.SendMessage(targetUserId, new InviteResponse(AuthenticationServiceManager.Instance.GetUserId()))
-            .OnSuccessComplete(() => 
+            .OnSuccessComplete(() =>
             {
                 inviteRequestList.Remove(targetUserId);
 
-                FriendServiceManager.Instance.TryForceRefresh();
+                HashDataManager.Instance.OnFriendDataChangedInvoke();
             })
             .Start();
     }
@@ -74,7 +74,7 @@ public class InviteLobbyManager : IDisposable
             {
                 myInviteRequestList.Remove(targetUserId);
 
-                FriendServiceManager.Instance.TryForceRefresh();
+                HashDataManager.Instance.OnFriendDataChangedInvoke();
             })
             .Start();
     }
@@ -98,24 +98,24 @@ public class InviteLobbyManager : IDisposable
         {
             inviteRequestList.Add(inviteRequest.SenderId);
 
-            FriendServiceManager.Instance.TryForceRefresh();
-
             Debug.Log($"Receive new request invite message from: {inviteRequest.SenderId}");
+
+            HashDataManager.Instance.OnFriendDataChangedInvoke();
         }
     }
 
     private void OnLobbyInvityRespone(InviteResponse inviteResponse) // Create/take lobby id and send
     {
-        Debug.Log($"Receive new respone invite message from: {inviteResponse.SenderId}");
-
         if (LobbyServiceManager.Instance.IsLobbyCreated())
         {
             FriendServiceManager.Instance.SendMessage(inviteResponse.SenderId, new LobbyIdMessage(LobbyServiceManager.Instance.GetLobbyId()))
-                .OnSuccessComplete(() => 
+                .OnSuccessComplete(() =>
                 {
                     myInviteRequestList.Remove(inviteResponse.SenderId);
 
-                    FriendServiceManager.Instance.TryForceRefresh();
+                    Debug.Log($"Receive new respone invite message from: {inviteResponse.SenderId}");
+
+                    HashDataManager.Instance.OnFriendDataChangedInvoke();
                 })
                 .Start();
         }
@@ -133,13 +133,15 @@ public class InviteLobbyManager : IDisposable
         {
             inviteRequestList.Remove(inviteCancellation.SenderId);
 
-            FriendServiceManager.Instance.TryForceRefresh();
+            HashDataManager.Instance.OnFriendDataChangedInvoke();
         }
     }
 
     private void OnLobbyIdMessage(LobbyIdMessage lobbyIdMessage) // Connect to lobby
     {
-        LobbyServiceManager.Instance.JoinLobbyByID(lobbyIdMessage.LobbyId).Start();
+        LobbyServiceManager.Instance.JoinLobbyByID(lobbyIdMessage.LobbyId)
+                                    .OnFinalyComplete(HashDataManager.Instance.OnFriendDataChangedInvoke)
+                                    .Start();
     }
 
     private void FriendServiceManager_OnMessageReceive(IMessageReceivedEvent message)
@@ -205,7 +207,7 @@ public class InviteLobbyManager : IDisposable
         else if (inviteRequestList.Contains(userId))
         {
             return FriendData.RequestType.WasInvited;
-        }    
+        }
         else
         {
             return FriendData.RequestType.None;
@@ -216,12 +218,12 @@ public class InviteLobbyManager : IDisposable
     {
         FriendData friendData = FriendServiceManager.Instance.GetFriendList().FirstOrDefault(f => f.FriendID == targetUserID);
 
-        return friendData.IsOnline && friendData.Type != FriendData.RequestType.MyInvited;
+        return friendData.IsOnline && friendData.Type != FriendData.RequestType.MyInvited && !LobbyServiceManager.Instance.LobbyContainsUser(targetUserID);
     }
 
     public bool CanAcceptInvite(string targetUserID)
     {
-        return GetRequstType(targetUserID) == FriendData.RequestType.WasInvited;
+        return GetRequstType(targetUserID) == FriendData.RequestType.WasInvited && !LobbyServiceManager.Instance.LobbyContainsUser(targetUserID);
     }
 
     public void Dispose()

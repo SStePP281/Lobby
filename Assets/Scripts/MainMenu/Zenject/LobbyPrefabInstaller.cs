@@ -6,6 +6,7 @@ public class LobbyPrefabInstaller : MonoInstaller
     public AvatarElementUI avatarElementUIPrefab;
     public CharacterElementUI characterElementUIPrefab;
     public LobbyPlayerSetup lobbyPlayerSetupPrefab;
+    public LobbyElementUI lobbyElementUIPrefab;
 
     public override void InstallBindings()
     {
@@ -13,5 +14,6 @@ public class LobbyPrefabInstaller : MonoInstaller
         Container.Bind<AvatarElementUI>().FromInstance(avatarElementUIPrefab);
         Container.Bind<CharacterElementUI>().FromInstance(characterElementUIPrefab);
         Container.Bind<LobbyPlayerSetup>().FromInstance(lobbyPlayerSetupPrefab);
+        Container.Bind<LobbyElementUI>().FromInstance(lobbyElementUIPrefab);
     }
 }

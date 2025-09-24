@@ -3,6 +3,7 @@ public class LobbyServiceData
     /*Settings*/
     public const float HEARTBEAT_DELAY = 15.0f;
     public const float UPDATE_LOBBY_DATA_DELAY = 1.1f;
+    public const float LOBBY_AUTO_DESTROY_DELAY_IF_ALONE = 1.0f;
     public const int maxLobbySize = 12;
 
     /*Lobby setting field*/

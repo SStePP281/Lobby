@@ -165,7 +165,8 @@ public class AuthenticationServiceManager : IDisposable
 
     public string GetUserId() => AuthenticationService.Instance.PlayerId;
 
-    public string GetPlayerName() => AuthenticationService.Instance.PlayerName;
+    public string GetPlayerName() => AuthenticationService.Instance != null && !string.IsNullOrEmpty(AuthenticationService.Instance.PlayerName) ? 
+                                     AuthenticationService.Instance.PlayerName : string.Empty;
 
     private async Task RefreshUserDataAsync()
     {
