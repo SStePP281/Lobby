@@ -5,10 +5,8 @@ public class TabPageGroupUI : TabGroupUI
 {
     [SerializeField] private List<Transform> pageList;
 
-    protected override void Start()
+    private void Start()
     {
-        base.Start();
-
         OnTabSelected(tabButtonList[0]);
     }
 

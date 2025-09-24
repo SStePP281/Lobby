@@ -7,26 +7,16 @@ public class TabGroupUI : MonoBehaviour
     [SerializeField] protected Sprite tabIdel;
     [SerializeField] protected Sprite tabHover;
     [SerializeField] protected Sprite tabActive;
+    [SerializeField] protected List<TabButtonUI> tabButtonList;
 
-    protected List<TabButtonUI> tabButtonList;
     protected TabButtonUI selectedTab;
 
-    protected virtual void Start()
+    protected virtual void Awake()
     {
-        tabButtonList.Sort((a, b) => a.transform.GetSiblingIndex().CompareTo(b.transform.GetSiblingIndex()));
-    }
-
-    public void Subscribe(TabButtonUI button)
-    {
-        var a = this;
-        if (tabButtonList == null)
+        foreach (TabButtonUI tabButton in tabButtonList)
         {
-            tabButtonList = new List<TabButtonUI>();
+            tabButton.SetTabGroup(this);
         }
-
-        if (tabButtonList.Contains(button)) { return; }
-
-        tabButtonList.Add(button);
     }
 
     public void OnTabEnter(TabButtonUI button)

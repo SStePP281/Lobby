@@ -1,15 +1,38 @@
 using ServiceRequest;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+using Zenject;
 
-public class MyFriendListMenuUI : FriendListUI
-{ 
-    protected override List<FriendData> GetFriendList() => FriendServiceManager.Instance.GetFriendList();
+public class MyFriendListMenuUI : UIList<FriendElementUI, FriendData>
+{
+    [Inject] private IFriendElementFactory friendElementFactory;
 
-    protected override void OnFriendElementClick(Vector2 elementPos, string playerID)
+    protected override void Awake()
     {
-        selectedPlayerID = playerID;
+        base.Awake();
 
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+        HashDataManager.Instance.OnFriendDataChanged += HashDataManager_OnFriendDataChanged;
+    }
+
+    protected override FriendElementUI CreateUIElement(Transform container)
+    {
+        return friendElementFactory.CreateFriendElement(container);
+    }
+
+    protected override List<FriendData> GetDataList()
+    {
+        return FriendServiceManager.Instance.GetFriendList()
+                                            .OrderBy(f => !f.InLobby)
+                                            .ThenBy(f => f.Type != FriendData.RequestType.WasInvited)
+                                            .ThenBy(f => f.Type != FriendData.RequestType.MyInvited)
+                                            .ThenByDescending(f => f.IsOnline)
+                                            .ToList();
+    }
+
+    protected override List<TabNameAction> GetActions()
+    {
         List<TabNameAction> actionList = new List<TabNameAction>
         {
             new TabNameAction("Profile", ShowProfile),
@@ -26,11 +49,10 @@ public class MyFriendListMenuUI : FriendListUI
             actionList.Insert(1, new TabNameAction("Accept request", AcceptRequst));
         }
 
-        tabActionGroupUI.Initialize(actionList);
-        tabActionGroupUI.SetPosition(elementPos);
-        tabActionGroupUI.Show();
+        return actionList;
     }
 
+    //Actions
     private void InviteForLobby()
     {
         InviteLobbyManager.Instance.SendLobbyInviteRequest(selectedPlayerID);
@@ -60,5 +82,29 @@ public class MyFriendListMenuUI : FriendListUI
     private void ShowProfile()
     {
         HideActionMenu();
+    }
+
+    //Events
+    private void AuthenticationServiceManager_OnSignOut()
+    {
+        objectPool.Clear();
+        selectedPlayerID = string.Empty;
+    }
+
+    private void HashDataManager_OnFriendDataChanged() => RefreshFriendData();
+
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
+        }
+
+        if (HashDataManager.Instance != null)
+        {
+            HashDataManager.Instance.OnFriendDataChanged -= HashDataManager_OnFriendDataChanged;
+        }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Unity.Services.Friends.Models;
 using UnityEngine;
 
-public struct FriendData
+public struct FriendData : IUserData
 {
     public enum RequestType
     {
@@ -10,7 +10,7 @@ public struct FriendData
         WasInvited
     }
 
-    public string FriendID;
+    public string UserID { get; set; }
     public string FriendName;
     public Sprite Avatar;
     public bool IsOnline;

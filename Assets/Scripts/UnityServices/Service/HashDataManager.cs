@@ -109,14 +109,14 @@ public class HashDataManager : IDisposable
             {
                 if (friendData.IsOnline)
                 {
-                    if (!myFriendDict.ContainsKey(friendData.FriendID))
+                    if (!myFriendDict.ContainsKey(friendData.UserID))
                     {
-                        myFriendDict[friendData.FriendID] = new FriendActivity();
+                        myFriendDict[friendData.UserID]= new FriendActivity();
                     }
 
                     if (friendData.Avatar != null)
                     {
-                        myFriendDict[friendData.FriendID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
+                        myFriendDict[friendData.UserID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
                     }
                 }
                 else
@@ -129,13 +129,13 @@ public class HashDataManager : IDisposable
 
             foreach (FriendData friendData in offlineFriendList)
             {
-                await CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, friendData.FriendID)
-                    .OnSuccessComplete((Item item) => myFriendDict[friendData.FriendID] = item.Value.GetAs<FriendActivity>())
+                await CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, friendData.UserID)
+                    .OnSuccessComplete((Item item) => myFriendDict[friendData.UserID] = item.Value.GetAs<FriendActivity>())
                     .OnFailureComplete(m =>
                     {
-                        if (!myFriendDict.ContainsKey(friendData.FriendID))
+                        if (!myFriendDict.ContainsKey(friendData.UserID))
                         {
-                            myFriendDict[friendData.FriendID] = new FriendActivity();
+                            myFriendDict[friendData.UserID] = new FriendActivity();
                         }
                     })
                     .StartAndWait();
@@ -157,17 +157,17 @@ public class HashDataManager : IDisposable
 
         foreach (FriendData friendData in friendList)
         {
-            if (!myFriendDict.ContainsKey(friendData.FriendID))
+            if (!myFriendDict.ContainsKey(friendData.UserID))
             {
                 if (friendData.Avatar != null)
                 {
-                    myFriendDict[friendData.FriendID] = new FriendActivity(avatarListSO.GetIndexBySprite(friendData.Avatar));
+                    myFriendDict[friendData.UserID] = new FriendActivity(avatarListSO.GetIndexBySprite(friendData.Avatar));
                 }
                 else
                 {
 
-                    CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, playerID: friendData.FriendID)
-                        .OnSuccessComplete((Item item) => myFriendDict[friendData.FriendID] = item.Value.GetAs<FriendActivity>())
+                    CloudSaveServiceManager.Instance.LoadPlayerData(CloudSaveData.FRIEND_ACTIVITY_DATA, playerID: friendData.UserID)
+                        .OnSuccessComplete((Item item) => myFriendDict[friendData.UserID] = item.Value.GetAs<FriendActivity>())
                         .Start();
                 }
             }
@@ -175,7 +175,7 @@ public class HashDataManager : IDisposable
             {
                 if (friendData.Avatar != null)
                 {
-                    myFriendDict[friendData.FriendID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
+                    myFriendDict[friendData.UserID].AvatarIndex = avatarListSO.GetIndexBySprite(friendData.Avatar);
                 }
             }
         }

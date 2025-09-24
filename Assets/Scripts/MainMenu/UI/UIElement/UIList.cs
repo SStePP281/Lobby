@@ -29,10 +29,29 @@ public abstract class UIList<T, D> : MonoBehaviour where D : IUserData
 
     protected abstract List<D> GetDataList();
 
-    protected abstract void OnElementClick(Vector2 elementPos, string playerID);
+    protected abstract List<TabNameAction> GetActions();
+
+    protected virtual void OnElementClick(Vector2 elementPos, string playerID)
+    {
+        selectedPlayerID = playerID;
+
+        if (selectedPlayerID == AuthenticationServiceManager.Instance.GetUserId())
+        {
+            selectedPlayerID = string.Empty;
+            HideActionMenu();
+            return;
+        }
+
+        tabActionGroupUI.Initialize(GetActions());
+        tabActionGroupUI.SetPosition(elementPos);
+        tabActionGroupUI.Show();
+    }
 
     protected void RefreshFriendData()
     {
+        objectPool.Hide();
+        HideActionMenu();
+
         List<D> list = GetDataList();
 
         if (emptyText != null)
@@ -96,7 +115,7 @@ public abstract class UIList<T, D> : MonoBehaviour where D : IUserData
 
     protected virtual void OnDisable()
     {
-        tabActionGroupUI.Hide();
+        HideActionMenu();
     }
 
     protected virtual void OnEnable()

@@ -152,13 +152,13 @@ public class AuthenticationServiceManager : IDisposable
     {
         if (!IsSignedIn) { return; }
 
+        IsSignedIn = false;
+
         OnSignOut?.Invoke();
 
         AuthenticationService.Instance.SignOut();
 
         AuthenticationService.Instance.ClearSessionToken();
-
-        IsSignedIn = false;
     }
 
     public void RefreshUserData() =>  _ = RefreshUserDataAsync();

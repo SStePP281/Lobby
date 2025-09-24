@@ -1,9 +1,9 @@
 ﻿using Unity.Services.Lobbies.Models;
 using UnityEngine;
 
-public struct LobbyUserData
+public struct LobbyUserData : IUserData
 {
-    public string UserID;
+    public string UserID {get; set;}
     public string Nickname;
     public bool IsHost;
     public bool IsMyData;

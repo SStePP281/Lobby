@@ -1,13 +1,10 @@
-using System;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class FriendElementUI : MonoBehaviour, IPointerClickHandler
+public class FriendElementUI : BaseUIListElement<FriendData>
 {
-    public event Action<Vector2, string> OnClick;
-
+    [Header("Reference")]
     [SerializeField] private TextMeshProUGUI friendNameText;
     [SerializeField] private Image avatarImage;
     [SerializeField] private Outline outline;
@@ -16,11 +13,9 @@ public class FriendElementUI : MonoBehaviour, IPointerClickHandler
     [SerializeField] private Color invitedColor;
     [SerializeField] private Color inLobbyColor;
 
-    private string friendID;
-
-    public FriendElementUI Initialize(FriendData friendData)
+    public override BaseUIListElement<FriendData> Initialize(FriendData friendData)
     {
-        friendID = friendData.FriendID;
+        base.Initialize(friendData);
 
         friendNameText.text = friendData.FriendName;
         avatarImage.sprite = friendData.Avatar;
@@ -48,13 +43,5 @@ public class FriendElementUI : MonoBehaviour, IPointerClickHandler
         }
 
         return this;
-    }
-
-    public void OnPointerClick(PointerEventData eventData)
-    {
-        if (eventData.button == PointerEventData.InputButton.Right)
-        {
-            OnClick?.Invoke(transform.position, friendID);
-        }
     }
 }

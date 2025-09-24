@@ -187,7 +187,7 @@ public class InviteLobbyManager : IDisposable
 
     private void FriendServiceManager_OnFriendListChanged()
     {
-        var validFriends = FriendServiceManager.Instance.GetFriendList().Select(f => f.FriendID).ToHashSet();
+        var validFriends = FriendServiceManager.Instance.GetFriendList().Select(f => f.UserID).ToHashSet();
 
         var toRemoveMy = myInviteRequestList.Keys.Where(id => !validFriends.Contains(id)).ToList();
         foreach (var id in toRemoveMy)
@@ -216,7 +216,7 @@ public class InviteLobbyManager : IDisposable
 
     public bool CanBeInvited(string targetUserID)
     {
-        FriendData friendData = FriendServiceManager.Instance.GetFriendList().FirstOrDefault(f => f.FriendID == targetUserID);
+        FriendData friendData = FriendServiceManager.Instance.GetFriendList().FirstOrDefault(f => f.UserID == targetUserID);
 
         return friendData.IsOnline && friendData.Type != FriendData.RequestType.MyInvited && !LobbyServiceManager.Instance.LobbyContainsUser(targetUserID);
     }

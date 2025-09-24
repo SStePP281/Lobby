@@ -8,12 +8,9 @@ public class TabButtonUI : MonoBehaviour, IPointerEnterHandler, IPointerExitHand
     public Image background;
     public TextMeshProUGUI text;
 
-    [SerializeField] private TabGroupUI tabGroup;
+    private TabGroupUI tabGroup;
 
-    private void Awake()
-    {
-        tabGroup.Subscribe(this);
-    }
+    public void SetTabGroup(TabGroupUI tabGroupUI) => tabGroup = tabGroupUI;
 
     public void OnPointerClick(PointerEventData eventData)
     {

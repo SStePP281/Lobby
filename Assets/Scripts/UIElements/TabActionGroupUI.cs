@@ -16,14 +16,7 @@ public struct TabNameAction
 
 public class TabActionGroupUI : TabGroupUI
 {
-    private List<TabNameAction> onTabClick;
-
-    private void Awake()
-    {
-        onTabClick = new List<TabNameAction>();
-
-        Hide();
-    }
+    private List<TabNameAction> onTabClick = new List<TabNameAction>();
 
     public void Initialize(List<TabNameAction> tabAction)
     {
@@ -39,8 +32,9 @@ public class TabActionGroupUI : TabGroupUI
 
             for (int i = 0; i < needCreate; i++)
             {
-                TabButtonUI tabButtonUI = Instantiate(tabButtonList[0], transform);
-                tabButtonList.Add(tabButtonUI);
+                TabButtonUI tabButton = Instantiate(tabButtonList[0], transform);
+                tabButton.SetTabGroup(this);
+                tabButtonList.Add(tabButton);
             }
         }
 

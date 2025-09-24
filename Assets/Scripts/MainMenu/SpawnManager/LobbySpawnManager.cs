@@ -109,7 +109,7 @@ public class LobbySpawnManager : MonoBehaviour
 
     private void HashDataManager_OnUserDataChanged()
     {
-        if (LobbyServiceManager.Instance.IsLobbyCreated()) { return; }
+        if (LobbyServiceManager.Instance.IsLobbyCreated() || !AuthenticationServiceManager.Instance.IsSignedIn) { return; }
 
         if (!lobbyPlayerDict.ContainsKey(AuthenticationServiceManager.Instance.GetUserId()))
         {

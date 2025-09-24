@@ -33,7 +33,7 @@ public class FriendDataCreator : IFriendDataCreator
 
         return new FriendData
         {
-            FriendID = member.Id,
+            UserID = member.Id,
             FriendName = member.Profile?.Name.Split("#")[0] ?? "Unknown",
             Avatar = avatarSprite,
             IsOnline = isOnline,
@@ -46,7 +46,7 @@ public class FriendDataCreator : IFriendDataCreator
     {
         return new FriendData
         {
-            FriendID = AuthenticationServiceManager.Instance.GetUserId(),
+            UserID = AuthenticationServiceManager.Instance.GetUserId(),
             FriendName = AuthenticationServiceManager.Instance.GetPlayerName(),
             Avatar = avatarListSO.GetSpriteByIndex(HashDataManager.Instance.GetMyFriendActivity().AvatarIndex),
             IsOnline = true,
