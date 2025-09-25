@@ -6,7 +6,7 @@ public class FriendDataCreator : IFriendDataCreator
 {
     [Inject] private LobbyAvatarListSO avatarListSO;
 
-    public FriendData GetFriendPlayerData(Relationship relationship)
+    public FriendData GetFriendData(Relationship relationship)
     {
         var member = relationship.Member;
         var presence = member.Presence;

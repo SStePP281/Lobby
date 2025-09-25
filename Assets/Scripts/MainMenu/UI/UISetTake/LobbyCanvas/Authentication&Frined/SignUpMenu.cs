@@ -16,10 +16,10 @@ public class SignUpMenu : SystemWindowTrigger
     {
         base.Awake();
 
-        usernameField.characterLimit = AuthenticationServiceData.MAX_USER_NAME_LENGHT;
-        passwordOneField.characterLimit = AuthenticationServiceData.MAX_PASSWORD_LENGHT;
-        passwordTwoField.characterLimit = AuthenticationServiceData.MAX_PASSWORD_LENGHT;
-        playerNameField.characterLimit = AuthenticationServiceData.MAX_PLAYER_NAME_LENGHT;
+        usernameField.characterLimit = AuthenticationServiceData.MAX_USER_NAME_LENGTH;
+        passwordOneField.characterLimit = AuthenticationServiceData.MAX_PASSWORD_LENGTH;
+        passwordTwoField.characterLimit = AuthenticationServiceData.MAX_PASSWORD_LENGTH;
+        playerNameField.characterLimit = AuthenticationServiceData.MAX_PLAYER_NAME_LENGTH;
         signUpButton.onClick.AddListener(SignUpButton_OnClick);
 
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
@@ -29,9 +29,8 @@ public class SignUpMenu : SystemWindowTrigger
 
     private void SignUpButton_OnClick()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
-        AuthenticationServiceManager.Instance.TrySingUp(usernameField.text, passwordOneField.text, passwordTwoField.text, playerNameField.text)
+        AuthenticationServiceManager.Instance.TrySignUp(usernameField.text, passwordOneField.text, passwordTwoField.text, playerNameField.text)
+                                             .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
                                              .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
                                              .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                              .Start();

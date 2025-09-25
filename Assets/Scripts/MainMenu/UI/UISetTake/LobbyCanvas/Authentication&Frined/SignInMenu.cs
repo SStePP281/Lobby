@@ -14,8 +14,8 @@ public class SignInMenu : SystemWindowTrigger
     {
         base.Awake();
 
-        usernameField.characterLimit = AuthenticationServiceData.MAX_USER_NAME_LENGHT;
-        passwordField.characterLimit = AuthenticationServiceData.MAX_PASSWORD_LENGHT;
+        usernameField.characterLimit = AuthenticationServiceData.MAX_USER_NAME_LENGTH;
+        passwordField.characterLimit = AuthenticationServiceData.MAX_USER_NAME_LENGTH;
         signInButton.onClick.AddListener(SignInButton_OnClick);
 
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
@@ -28,9 +28,8 @@ public class SignInMenu : SystemWindowTrigger
 
     private void SignInButton_OnClick()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
-        AuthenticationServiceManager.Instance.TrySingIn(usernameField.text, passwordField.text)
+        AuthenticationServiceManager.Instance.TrySignIn(usernameField.text, passwordField.text)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();

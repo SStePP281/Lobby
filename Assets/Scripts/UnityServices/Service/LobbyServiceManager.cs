@@ -46,6 +46,8 @@ public class LobbyServiceManager : IDisposable
         lobby = new ReactiveVariable<Lobby>(null, new LobbyEqualityComparer());
         lobby.OnValueChanged += Lobby_OnValueChanged;
 
+        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+
         loopsCts = new CancellationTokenSource();
     }
 
@@ -85,7 +87,7 @@ public class LobbyServiceManager : IDisposable
         {
             if (lobby.Value != null || isCreatingLobby)
             {
-                throw new Exception("Lobby all ready created or creating now");
+                throw new Exception("A lobby is already created or currently being created.");
             }
 
             await lobbySemaphore.WaitAsync();
@@ -120,11 +122,11 @@ public class LobbyServiceManager : IDisposable
 
     public Request JoinLobbyByID(string targetLobbyID)
     {
-        Request request = new Request(async () => 
+        Request request = new Request(async () =>
         {
             if (string.IsNullOrEmpty(targetLobbyID))
             {
-                throw new Exception("Target lobby ID is null or empty");
+                throw new Exception("Lobby ID cannot be empty or null.");
             }
 
             if (lobby.Value != null)
@@ -163,7 +165,7 @@ public class LobbyServiceManager : IDisposable
         {
             if (lobby.Value == null)
             {
-                throw new Exception("All ready leave from lobby");
+                throw new Exception("You are not in a lobby.");
             }
 
             if (IsMyLobby())
@@ -196,17 +198,17 @@ public class LobbyServiceManager : IDisposable
         {
             if (!IsMyLobby())
             {
-                throw new Exception("You can't kick if you aren't a leader");
+                throw new Exception("Only the lobby host can kick players.");
             }
 
             if (string.IsNullOrEmpty(clientID))
             {
-                throw new Exception("Kicked player has null ID");
+                throw new Exception("Player ID to kick is invalid.");
             }
 
             if (clientID == AuthenticationServiceManager.Instance.GetUserId())
             {
-                throw new Exception("You can't kick myself");
+                throw new Exception("You cannot kick yourself.");
             }
 
             await LobbyService.Instance.RemovePlayerAsync(lobby.Value.Id, clientID);
@@ -223,22 +225,22 @@ public class LobbyServiceManager : IDisposable
         {
             if (!IsMyLobby())
             {
-                throw new Exception("You can't migrate host");
+                throw new Exception("Only the current host can transfer host privileges.");
             }
 
             if (string.IsNullOrEmpty(clientID))
             {
-                throw new Exception("Target host clien has null ID");
+                throw new Exception("New host ID is invalid.");
             }
 
             if (clientID == AuthenticationServiceManager.Instance.GetUserId())
             {
-                throw new Exception("You all ready host");
+                throw new Exception("You are already the host.");
             }
 
             if (!lobby.Value.Players.Any(p => p.Id == clientID))
             {
-                throw new Exception("Target new host id not in lobby");
+                throw new Exception("The selected player is not in this lobby.");
             }
 
             await lobbySemaphore.WaitAsync();
@@ -269,7 +271,7 @@ public class LobbyServiceManager : IDisposable
         {
             if (lobby.Value == null)
             {
-                throw new Exception("You not in lobby");
+                throw new Exception("You must be in a lobby to update player data.");
             }
 
             PlayerDataObject.VisibilityOptions visibilityOptions = isPublic ? PlayerDataObject.VisibilityOptions.Public : PlayerDataObject.VisibilityOptions.Private;
@@ -501,6 +503,8 @@ public class LobbyServiceManager : IDisposable
         return list;
     }
 
+    private async void AuthenticationServiceManager_OnSignOut() => await LeaveFromLobby().StartAndWait();
+
     public void Dispose()
     {
         isDisposing = true;
@@ -508,5 +512,11 @@ public class LobbyServiceManager : IDisposable
         instance = null;
 
         loopsCts?.Cancel();
+
+
+        if (AuthenticationServiceManager.Instance != null)
+        {
+            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
+        }
     }
 }

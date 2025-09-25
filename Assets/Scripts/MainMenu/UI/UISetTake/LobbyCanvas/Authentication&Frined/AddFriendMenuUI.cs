@@ -20,11 +20,15 @@ public class AddFriendMenuUI : SystemWindowTrigger
 
     private void AddFriend()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         FriendServiceManager.Instance.TryAddFriend(friendIDField.text)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
+    }
+
+    private void OnDisable()
+    {
+        friendIDField.text = string.Empty;
     }
 }

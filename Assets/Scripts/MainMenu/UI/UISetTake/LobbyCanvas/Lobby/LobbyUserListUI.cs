@@ -46,16 +46,10 @@ public class LobbyUserListUI : UIList<LobbyElementUI, LobbyUserData>
     }
 
     //Actions
-    private void ShowProfile()
-    {
-        HideActionMenu();
-    }
-
     private void KickUser()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         LobbyServiceManager.Instance.KickClientFromLobby(selectedPlayerID)
+                                    .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
                                     .OnSuccessComplete(() => InformationUI.Instance.Hide())
                                     .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                     .Start();
@@ -65,13 +59,17 @@ public class LobbyUserListUI : UIList<LobbyElementUI, LobbyUserData>
 
     private void MigrateHost()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         LobbyServiceManager.Instance.MigrateLobbyHost(selectedPlayerID)
+                                    .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
                                     .OnSuccessComplete(() => InformationUI.Instance.Hide())
                                     .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                     .Start();
 
+        HideActionMenu();
+    }
+
+    private void ShowProfile()
+    {
         HideActionMenu();
     }
 

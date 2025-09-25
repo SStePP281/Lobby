@@ -69,9 +69,8 @@ public class MyFriendListMenuUI : UIList<FriendElementUI, FriendData>
 
     private void DeleteFromFriend()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         FriendServiceManager.Instance.TryDeleteFriend(selectedPlayerID)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();

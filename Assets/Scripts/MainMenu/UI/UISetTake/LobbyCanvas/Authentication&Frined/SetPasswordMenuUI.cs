@@ -21,9 +21,8 @@ public class SetPasswordMenuUI : SystemWindowTrigger
 
     private void SetNewPassword()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         AuthenticationServiceManager.Instance.TrySetNewPassword(oldPasswordField.text, newPasswordField.text)
+                                             .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
                                              .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
                                              .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                              .Start();

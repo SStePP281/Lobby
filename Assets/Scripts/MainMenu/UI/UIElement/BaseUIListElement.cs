@@ -6,20 +6,20 @@ public abstract class BaseUIListElement<D> : MonoBehaviour, IPointerClickHandler
 {
     public event Action<Vector2, string> OnClick;
 
-    private D data;
+    public D Data {get; private set;}
 
     public virtual BaseUIListElement<D> Initialize(D data)
     {
-        this.data = data;
+        Data = data;
 
         return this;
     }
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (eventData.button == PointerEventData.InputButton.Left)
+        if (eventData.button == PointerEventData.InputButton.Right)
         {
-            OnClick?.Invoke(transform.position, data.UserID);
+            OnClick?.Invoke(transform.position, Data.UserID);
         }
     }
 }

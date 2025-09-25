@@ -10,5 +10,6 @@ public class LobbyFactoryInstaller : MonoInstaller
         Container.Bind<ICharacterFactory>().To<CharacterFactory>().AsSingle();
         Container.Bind<ILobbyPlayerSetupFactory>().To<LobbyPlayerSetupFactory>().AsSingle();
         Container.Bind<ILobbyElementFactory>().To<LobbyElementFactory>().AsSingle();
+        Container.Bind<INotificationElementFactory>().To<NotificationElementFactory>().AsSingle();
     }
 }

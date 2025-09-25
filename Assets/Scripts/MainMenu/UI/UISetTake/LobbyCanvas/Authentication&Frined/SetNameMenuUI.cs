@@ -20,9 +20,8 @@ public class SetNameMenuUI : SystemWindowTrigger
 
     private void SetNewName()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         AuthenticationServiceManager.Instance.TrySetNewPlayrName(nameField.text)
+                                             .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
                                              .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
                                              .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                              .Start();

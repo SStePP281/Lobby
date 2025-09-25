@@ -15,6 +15,7 @@ public class FriendServiceManager : IDisposable
     public event Action OnUserDataUpdate;
     public event Action<IMessageReceivedEvent> OnMessageReceive;
     public event Action OnFriendListChanged;
+    public event Action<string> OnReceiveFriendRequest;
 
     private static bool isDisposing = false;
     private static FriendServiceManager instance;
@@ -63,7 +64,7 @@ public class FriendServiceManager : IDisposable
             await FriendsService.Instance.InitializeAsync();
 
             isInit = true;
-            Debug.Log("Initilize frined service");
+            Debug.Log("Initialize friend service");
 
             await FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Online);
 
@@ -81,12 +82,22 @@ public class FriendServiceManager : IDisposable
         {
             if (string.IsNullOrWhiteSpace(userId))
             {
-                throw new Exception("Please enter friend ID");
+                throw new Exception("Friend ID cannot be empty.");
             }
 
-            if (FriendsService.Instance.Friends.Count >= FriendServiceData.MAX_FRINED_COUNT)
+            if (FriendsService.Instance.Friends.Any(r => r.Member.Id == userId))
             {
-                throw new Exception("The maximum number of friends has been achieved");
+                throw new Exception("This user is already your friend.");
+            }
+
+            if (FriendsService.Instance.OutgoingFriendRequests.Any(r => r.Member.Id == userId))
+            {
+                throw new Exception("Friend request to this user has already been sent.");
+            }
+
+            if (FriendsService.Instance.Friends.Count >= FriendServiceData.MAX_FRIEND_COUNT)
+            {
+                throw new Exception($"You have reached the maximum number of friends ({FriendServiceData.MAX_FRIEND_COUNT}).");
             }
 
             if (!FriendsService.Instance.IncomingFriendRequests.Any(r => r.Id == userId))
@@ -99,7 +110,7 @@ public class FriendServiceManager : IDisposable
                     }
                     else
                     {
-                        throw new Exception ("The number of queries has been exceeded, delete not relevant");
+                        throw new Exception("You have reached the maximum number of friend requests. Please cancel an existing request before sending a new one.");
                     }
                 }
             }
@@ -108,7 +119,7 @@ public class FriendServiceManager : IDisposable
 
             await ForceRelationshipsRefreshAsync();
         });
-        
+
         return request;
     }
 
@@ -118,7 +129,7 @@ public class FriendServiceManager : IDisposable
         {
             if (string.IsNullOrEmpty(userId))
             {
-                throw new Exception("Uncorrect selected friend ID");
+                throw new Exception("Friend ID is invalid or missing.");
             }
 
             await FriendsService.Instance.DeleteFriendAsync(userId);
@@ -135,7 +146,7 @@ public class FriendServiceManager : IDisposable
         {
             if (string.IsNullOrEmpty(userId))
             {
-                throw new Exception("Uncorrect selected user ID");
+                throw new Exception("User ID is invalid or missing.");
             }
 
             await FriendsService.Instance.DeleteIncomingFriendRequestAsync(userId);
@@ -165,7 +176,7 @@ public class FriendServiceManager : IDisposable
         {
             if (string.IsNullOrEmpty(targetUserId))
             {
-                throw new Exception("Invalid friend ID");
+                throw new Exception("Recipient user ID is invalid or missing.");
             }
 
             await FriendsService.Instance.MessageAsync(targetUserId, message);
@@ -176,32 +187,47 @@ public class FriendServiceManager : IDisposable
         return request;
     }
 
+    public FriendData GetFriendData(string userId)
+    {
+        if (!isInit) { return default; }
+
+        Relationship relationship = null;
+
+        relationship = FriendsService.Instance.Friends.FirstOrDefault(r => r.Member.Id == userId);
+        if (relationship == null)
+        {
+            relationship = FriendsService.Instance.IncomingFriendRequests.FirstOrDefault(r => r.Member.Id == userId);
+        }
+
+        return friendDataCreator.GetFriendData(relationship);
+    }
+
     public List<FriendData> GetFriendList()
     {
-        List<FriendData> frinedList = new List<FriendData>();
+        List<FriendData> friendList = new List<FriendData>();
 
-        if (!isInit) { return frinedList; }
+        if (!isInit) { return friendList; }
 
         foreach (Relationship relationship in FriendsService.Instance.Friends)
         {
-            frinedList.Add(friendDataCreator.GetFriendPlayerData(relationship)); 
+            friendList.Add(friendDataCreator.GetFriendData(relationship));
         }
 
-        return frinedList;
+        return friendList;
     }
 
     public List<FriendData> GetIncomingRequestsList()
     {
-        List<FriendData> frinedList = new List<FriendData>();
+        List<FriendData> friendList = new List<FriendData>();
 
-        if (!isInit) { return frinedList; }
+        if (!isInit) { return friendList; }
 
         foreach (Relationship relationship in FriendsService.Instance.IncomingFriendRequests)
         {
-            frinedList.Add(friendDataCreator.GetFriendPlayerData(relationship));
+            friendList.Add(friendDataCreator.GetFriendData(relationship));
         }
 
-        return frinedList;
+        return friendList;
     }
 
     public FriendData GetMyFriendData()
@@ -235,7 +261,15 @@ public class FriendServiceManager : IDisposable
 
     private void FriendsService_PresenceUpdated(IPresenceUpdatedEvent obj) => OnFriendListChanged?.Invoke();
 
-    private void FriendsService_RelationshipAdded(IRelationshipAddedEvent obj) => OnFriendListChanged?.Invoke();
+    private void FriendsService_RelationshipAdded(IRelationshipAddedEvent obj)
+    {
+        if (obj.Relationship.Type == RelationshipType.FriendRequest && obj.Relationship.Member.Role == MemberRole.Source)
+        {
+            OnReceiveFriendRequest?.Invoke(obj.Relationship.Member.Id);
+        }
+
+        OnFriendListChanged?.Invoke();
+    }
 
     private void FriendsService_RelationshipDeleted(IRelationshipDeletedEvent obj) => OnFriendListChanged?.Invoke();
 

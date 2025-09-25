@@ -5,6 +5,15 @@ namespace ServiceRequest
 {
     public static class RequestResultSettingsExtensions
     {
+        public static R OnStartRun<R>(this R request, Action onStartCallback) where R : Request
+        {
+            if (request == null) { return request; }
+
+            request.OnStart += onStartCallback;
+
+            return request;
+        }
+
         public static R OnSuccessComplete<R>(this R request, Action onSuccesCallback) where R : Request
         {
             if (request == null) { return request; }
@@ -28,6 +37,15 @@ namespace ServiceRequest
             if (request == null) { return request; }
 
             request.OnFinaly += onFinalyCallback;
+
+            return request;
+        }
+
+        public static R OnStartRun<R, T>(this R request, Action onStartCallback) where R : Request<T>
+        {
+            if (request == null) { return request; }
+
+            request.OnStart += onStartCallback;
 
             return request;
         }
@@ -62,6 +80,7 @@ namespace ServiceRequest
 
     public class Request
     {
+        public Action OnStart { get; protected internal set; }
         public Action OnSuccess { get; protected internal set; }
         public Action<string> OnFailure { get; protected internal set; }
         public Action OnFinaly { get; protected internal set; }
@@ -88,9 +107,11 @@ namespace ServiceRequest
 
             if (mainAction != null)
             {
+                OnStart?.Invoke();
+
                 try
                 {
-                    await mainAction.Invoke();
+                    await mainAction?.Invoke();
                     Success();
                 }
                 catch (Exception e)
@@ -143,6 +164,8 @@ namespace ServiceRequest
 
             if (mainAction != null)
             {
+                OnStart?.Invoke();
+
                 try
                 {
                     Success(await mainAction.Invoke());

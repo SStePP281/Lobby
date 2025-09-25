@@ -11,8 +11,8 @@ public class CloudSaveServiceManager : IDisposable
 {
     private static bool isDisposed = false;
     private static CloudSaveServiceManager instance;
-    public static CloudSaveServiceManager Instance 
-    { 
+    public static CloudSaveServiceManager Instance
+    {
         get
         {
             if (instance == null && !isDisposed)
@@ -32,16 +32,16 @@ public class CloudSaveServiceManager : IDisposable
 
     private Request<Item> LoadPlayerData(string dataField, bool isPublicData, string playerID)
     {
-        Request<Item> request = new Request<Item>(async () => 
+        Request<Item> request = new Request<Item>(async () =>
         {
             if (!AuthenticationServiceManager.Instance.IsSignedIn)
             {
-                throw new Exception("Please sign in");
+                throw new Exception("You must be signed in to load cloud data.");
             }
 
             if (string.IsNullOrEmpty(dataField))
             {
-                throw new Exception("Invalid data key");
+                throw new Exception("Data key cannot be empty or null.");
             }
 
             HashSet<string> loadField = new HashSet<string>() { dataField };
@@ -62,9 +62,8 @@ public class CloudSaveServiceManager : IDisposable
             }
             else
             {
-                throw new Exception("Failed load data, data not found");
+                throw new Exception("Failed to load data: the specified key was not found in the cloud save.");
             }
-
         });
 
         return request;
@@ -76,17 +75,17 @@ public class CloudSaveServiceManager : IDisposable
         {
             if (!AuthenticationServiceManager.Instance.IsSignedIn)
             {
-                throw new Exception("Please sign in");
+                throw new Exception("You must be signed in to save cloud data.");
             }
 
             if (string.IsNullOrEmpty(dataField))
             {
-                throw new Exception("Invalid data key");
+                throw new Exception("Data key cannot be empty or null.");
             }
 
             if (saveItem == null)
             {
-                throw new Exception("Invalid save item");
+                throw new Exception("Cannot save null data.");
             }
 
             Dictionary<string, object> saveData = new Dictionary<string, object>() { { dataField, saveItem } };

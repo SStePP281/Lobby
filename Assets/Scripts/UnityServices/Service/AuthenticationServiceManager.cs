@@ -40,13 +40,13 @@ public class AuthenticationServiceManager : IDisposable
         _ = InitializeAsync();
     }
 
-    public Request TrySingIn(string username, string password)
+    public Request TrySignIn(string username, string password)
     {
         Request requestResult = new Request(async () =>
         {
             if (IsSignedIn)
             {
-                throw new Exception("Already signed in.");
+                throw new Exception("You are already signed in.");
             }
 
             if (!AuthenticationServiceData.CheckValidUsername(username))
@@ -67,13 +67,13 @@ public class AuthenticationServiceManager : IDisposable
         return requestResult;
     }
 
-    public Request TrySingUp(string username, string passwordOne, string passwordTwo, string playerName)
+    public Request TrySignUp(string username, string passwordOne, string passwordTwo, string playerName)
     {
         Request request = new Request(async () =>
         {
             if (IsSignedIn)
             {
-                throw new Exception("Already signed in.");
+                throw new Exception("You are already signed in.");
             }
 
             if (!AuthenticationServiceData.CheckValidUsername(username))
@@ -93,7 +93,7 @@ public class AuthenticationServiceManager : IDisposable
 
             if (passwordOne != passwordTwo)
             {
-                throw new Exception("Passwords do not match.");
+                throw new Exception("The passwords do not match.");
             }
 
             if (!AuthenticationServiceData.CheckValidPlayerName(playerName))
@@ -113,10 +113,10 @@ public class AuthenticationServiceManager : IDisposable
 
     public Request TrySetNewPlayrName(string newPlayrName)
     {
-        Request request = new Request(async () => 
+        Request request = new Request(async () =>
         {
             if (newPlayrName == AuthenticationService.Instance.PlayerName) { return; }
-            
+
             if (!AuthenticationServiceData.CheckValidPlayerName(newPlayrName))
             {
                 throw new Exception(AuthenticationServiceData.GetPlayerNameValidParam());
@@ -130,7 +130,7 @@ public class AuthenticationServiceManager : IDisposable
 
     public Request TrySetNewPassword(string oldPassword, string newPassword)
     {
-        Request request = new Request(async () => 
+        Request request = new Request(async () =>
         {
             if (!AuthenticationServiceData.CheckValidPassword(oldPassword))
             {
@@ -148,7 +148,7 @@ public class AuthenticationServiceManager : IDisposable
         return request;
     }
 
-    public void TrySingOut()
+    public void TrySignOut()
     {
         if (!IsSignedIn) { return; }
 
@@ -161,11 +161,11 @@ public class AuthenticationServiceManager : IDisposable
         AuthenticationService.Instance.ClearSessionToken();
     }
 
-    public void RefreshUserData() =>  _ = RefreshUserDataAsync();
+    public void RefreshUserData() => _ = RefreshUserDataAsync();
 
     public string GetUserId() => AuthenticationService.Instance.PlayerId;
 
-    public string GetPlayerName() => AuthenticationService.Instance != null && !string.IsNullOrEmpty(AuthenticationService.Instance.PlayerName) ? 
+    public string GetPlayerName() => AuthenticationService.Instance != null && !string.IsNullOrEmpty(AuthenticationService.Instance.PlayerName) ?
                                      AuthenticationService.Instance.PlayerName : string.Empty;
 
     private async Task RefreshUserDataAsync()

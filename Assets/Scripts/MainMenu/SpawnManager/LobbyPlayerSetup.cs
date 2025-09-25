@@ -15,14 +15,16 @@ public class LobbyPlayerSetup : MonoBehaviour
 
     private Transform currentModel;
 
-    public void Initialize(string clientID, int characterIndex, Transform model, string nickname, bool isHost = true, bool isReady = false)
+    public LobbyPlayerSetup Initialize(LobbyUserData lobbyUserData, Transform model)
     {
-        CliendID = clientID;
+        CliendID = lobbyUserData.UserID;
 
-        SetModel(characterIndex, model);
-        SetNickname(nickname);
-        SetHostFlag(isHost);
-        SetReadyFlag(isReady);
+        SetModel(lobbyUserData.CharacterIndex, model);
+        SetNickname(lobbyUserData.Nickname);
+        SetHostFlag(lobbyUserData.IsHost);
+        SetReadyFlag(lobbyUserData.IsReady);
+
+        return this;
     }
 
     public void SetModel(int characterIndex, Transform model)

@@ -32,10 +32,7 @@ public class LobbySpawnManager : MonoBehaviour
         LobbyPlayerSetup lobbyPlayerSetup = objectPool.GetElement(spawnPointList[currentSpawnPointIndex]);
         currentSpawnPointIndex++;
 
-        Transform character = characterFactory.CreateCharacter(lobbyUserData.CharacterIndex, lobbyPlayerSetup.GetModelContainer());
-        lobbyPlayerSetup.Initialize(lobbyUserData.UserID, lobbyUserData.CharacterIndex, character, lobbyUserData.Nickname, lobbyUserData.IsHost, lobbyUserData.IsReady);
-
-        lobbyPlayerDict[lobbyUserData.UserID] = lobbyPlayerSetup;
+        lobbyPlayerDict[lobbyUserData.UserID] = lobbyPlayerSetup.Initialize(lobbyUserData, characterFactory.CreateCharacter(lobbyUserData.CharacterIndex, lobbyPlayerSetup.GetModelContainer()));
 
         return lobbyPlayerSetup;
     }
@@ -166,5 +163,6 @@ public class LobbySpawnManager : MonoBehaviour
         }
 
         objectPool.Clear();
+        lobbyPlayerDict.Clear();
     }
 }

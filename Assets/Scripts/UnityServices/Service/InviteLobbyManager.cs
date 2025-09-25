@@ -8,6 +8,8 @@ using ServiceRequest;
 
 public class InviteLobbyManager : IDisposable
 {
+    public event Action<string> OnReceiveInvite;
+
     private static bool isDisposing = false;
     private static InviteLobbyManager instence;
     public static InviteLobbyManager Instance
@@ -99,6 +101,8 @@ public class InviteLobbyManager : IDisposable
             inviteRequestList.Add(inviteRequest.SenderId);
 
             Debug.Log($"Receive new request invite message from: {inviteRequest.SenderId}");
+
+            OnReceiveInvite?.Invoke(inviteRequest.SenderId);
 
             HashDataManager.Instance.OnFriendDataChangedInvoke();
         }
@@ -216,9 +220,9 @@ public class InviteLobbyManager : IDisposable
 
     public bool CanBeInvited(string targetUserID)
     {
-        FriendData friendData = FriendServiceManager.Instance.GetFriendList().FirstOrDefault(f => f.UserID == targetUserID);
+        FriendData friendData = FriendServiceManager.Instance.GetFriendData(targetUserID);
 
-        return friendData.IsOnline && friendData.Type != FriendData.RequestType.MyInvited && !LobbyServiceManager.Instance.LobbyContainsUser(targetUserID);
+        return friendData.IsOnline && friendData.Type == FriendData.RequestType.None && !LobbyServiceManager.Instance.LobbyContainsUser(targetUserID);
     }
 
     public bool CanAcceptInvite(string targetUserID)

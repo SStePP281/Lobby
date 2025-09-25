@@ -1,6 +1,5 @@
 using ServiceRequest;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using Zenject;
 
@@ -23,12 +22,7 @@ public class FriendIncomingRequestMenuUI : UIList<FriendElementUI, FriendData>
 
     protected override List<FriendData> GetDataList()
     {
-        return FriendServiceManager.Instance.GetIncomingRequestsList()
-                                            .OrderBy(f => !f.InLobby)
-                                            .ThenBy(f => f.Type != FriendData.RequestType.WasInvited)
-                                            .ThenBy(f => f.Type != FriendData.RequestType.MyInvited)
-                                            .ThenByDescending(f => f.IsOnline)
-                                            .ToList(); ;
+        return FriendServiceManager.Instance.GetIncomingRequestsList();
     }
 
     protected override List<TabNameAction> GetActions()
@@ -44,9 +38,8 @@ public class FriendIncomingRequestMenuUI : UIList<FriendElementUI, FriendData>
     //Actions
     private void AcceptRequest()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         FriendServiceManager.Instance.TryAddFriend(selectedPlayerID)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
@@ -56,9 +49,8 @@ public class FriendIncomingRequestMenuUI : UIList<FriendElementUI, FriendData>
 
     private void DeclineRequest()
     {
-        InformationUI.Instance.Show("Wait...", false);
-
         FriendServiceManager.Instance.TryDeleteIncomingRequest(selectedPlayerID)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => InformationUI.Instance.Hide())
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();

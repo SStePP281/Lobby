@@ -14,8 +14,13 @@ public class ServicesBootstrap : MonoBehaviour
         LobbyServiceManager.Instance.SetLobbyUserDataCreator(lobbyUserDataCreator);
     }
 
-    private void OnDestroy()
+    private async void OnDestroy()
     {
+        if (LobbyServiceManager.Instance.IsLobbyCreated())
+        {
+            await LobbyServiceManager.Instance.LeaveFromLobby().StartAndWait();
+        }
+
         LobbyServiceManager.Instance.Dispose();
         InviteLobbyManager.Instance.Dispose();
         HashDataManager.Instance.Dispose();

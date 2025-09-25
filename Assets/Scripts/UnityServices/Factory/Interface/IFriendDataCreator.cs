@@ -20,7 +20,7 @@ public struct FriendData : IUserData
 
 public interface IFriendDataCreator
 {
-    public FriendData GetFriendPlayerData(Relationship relationship);
+    public FriendData GetFriendData(Relationship relationship);
 
     public FriendData GetMyFriendData();
 }

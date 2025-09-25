@@ -7,8 +7,8 @@ public class LobbyElementUI : BaseUIListElement<LobbyUserData>
     [Header("Reference")]
     [SerializeField] private TextMeshProUGUI nicknameText;
     [SerializeField] private Image avatarImage;
-    [SerializeField] private Image hostImage;
-    [SerializeField] private Image myImage;
+    [SerializeField] private Transform hostImage;
+    [SerializeField] private Transform myImage;
 
     public override BaseUIListElement<LobbyUserData> Initialize(LobbyUserData userData)
     {

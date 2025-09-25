@@ -13,6 +13,6 @@ public class QuitFromAccountButton : MonoBehaviour
 
     private void QuitFromAccountButton_onClick()
     {
-        AuthenticationServiceManager.Instance.TrySingOut();
+        AuthenticationServiceManager.Instance.TrySignOut();
     }
 }

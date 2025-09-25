@@ -41,9 +41,8 @@ public class SetAvatarMenuUI : SystemWindowTrigger
         FriendActivity activity = HashDataManager.Instance.GetMyFriendActivity();
         activity.AvatarIndex = avatarList.GetIndexBySprite(selectedAvatar);
 
-        InformationUI.Instance.Show("Wait...", false);
-
         HashDataManager.Instance.SetMyFriendActivity(activity)
+            .OnStartRun(() => InformationUI.Instance.Show("Wait...", false))
             .OnSuccessComplete(() => { InformationUI.Instance.Hide(); window.Close(); })
             .OnFailureComplete(m => InformationUI.Instance.Show(m))
             .Start();
