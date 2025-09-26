@@ -36,4 +36,12 @@ public class InformationUI : SystemWindowTrigger
     }
 
     public void Hide() => window.Close();
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
 }

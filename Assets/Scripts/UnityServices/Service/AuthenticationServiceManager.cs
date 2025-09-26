@@ -9,6 +9,7 @@ public class AuthenticationServiceManager : IDisposable
 {
     public event Action OnSignIn;
     public event Action OnSignOut;
+    public event Func<Task> OnSignOutWait;
     public event Action OnPlayerInfoChanged;
 
     private event Action OnInititialize;
@@ -148,13 +149,15 @@ public class AuthenticationServiceManager : IDisposable
         return request;
     }
 
-    public void TrySignOut()
+    public async Task TrySignOut()
     {
         if (!IsSignedIn) { return; }
 
-        IsSignedIn = false;
-
         OnSignOut?.Invoke();
+
+        await OnSignOutWait?.Invoke();
+
+        IsSignedIn = false;
 
         AuthenticationService.Instance.SignOut();
 

@@ -46,7 +46,7 @@ public class LobbyServiceManager : IDisposable
         lobby = new ReactiveVariable<Lobby>(null, new LobbyEqualityComparer());
         lobby.OnValueChanged += Lobby_OnValueChanged;
 
-        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+        AuthenticationServiceManager.Instance.OnSignOutWait += AuthenticationServiceManager_OnSignOut;
 
         loopsCts = new CancellationTokenSource();
     }
@@ -105,7 +105,7 @@ public class LobbyServiceManager : IDisposable
                     Data = new Dictionary<string, DataObject> { }
                 };
 
-                Lobby createdLobby = await LobbyService.Instance.CreateLobbyAsync("NON", LobbyServiceData.maxLobbySize, createLobbyOptions);
+                Lobby createdLobby = await LobbyService.Instance.CreateLobbyAsync("NON", LobbyServiceData.MAX_LOBBY_SIZE, createLobbyOptions);
                 lobby.Value = createdLobby;
             }
             finally
@@ -176,10 +176,7 @@ public class LobbyServiceManager : IDisposable
             await lobbySemaphore.WaitAsync();
             try
             {
-                string lobbyId = lobby.Value.Id;
-                await LobbyService.Instance.RemovePlayerAsync(lobbyId, AuthenticationServiceManager.Instance.GetUserId());
-
-                Debug.Log($"Leave from lobby {lobbyId}");
+                await LobbyService.Instance.RemovePlayerAsync(lobby.Value.Id, AuthenticationServiceManager.Instance.GetUserId());
 
                 lobby.Value = null;
             }
@@ -503,7 +500,7 @@ public class LobbyServiceManager : IDisposable
         return list;
     }
 
-    private async void AuthenticationServiceManager_OnSignOut() => await LeaveFromLobby().StartAndWait();
+    private async Task AuthenticationServiceManager_OnSignOut() => await LeaveFromLobby().StartAndWait();
 
     public void Dispose()
     {
@@ -513,10 +510,9 @@ public class LobbyServiceManager : IDisposable
 
         loopsCts?.Cancel();
 
-
         if (AuthenticationServiceManager.Instance != null)
         {
-            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
+            AuthenticationServiceManager.Instance.OnSignOutWait -= AuthenticationServiceManager_OnSignOut;
         }
     }
 }

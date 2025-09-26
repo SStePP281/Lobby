@@ -2,8 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using Zenject;
 
-public class NotificationInviteListUI : MonoBehaviour
+public class NotificationUI : MonoBehaviour
 {
+    public static NotificationUI Instance { get; private set; }
+
     [Inject] private INotificationElementFactory elementFactory;
 
     [Header("Reference")]
@@ -19,14 +21,21 @@ public class NotificationInviteListUI : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(this);
+            return;
+        }
+
         objectPool = new ObjectPool<NotificationElementUI>(GetElement, container);
         elements = new LinkedList<NotificationElementUI>();
-
-        InviteLobbyManager.Instance.OnReceiveInvite += InviteLobbyManager_OnReceiveInvite;
-        FriendServiceManager.Instance.OnReceiveFriendRequest += FriendServiceManager_OnReceiveFriendRequest;
     }
 
-    private void CreateNotification(FriendData friendData, string message)
+    public void CreateNotification(FriendData friendData, string message)
     {
         var node = FindNode(friendData);
         if (node != null)
@@ -81,20 +90,11 @@ public class NotificationInviteListUI : MonoBehaviour
         return elementFactory.CreateElement(parent);
     }
 
-    private void InviteLobbyManager_OnReceiveInvite(string userID) => CreateNotification(FriendServiceManager.Instance.GetFriendData(userID), "send invite");
-
-    private void FriendServiceManager_OnReceiveFriendRequest(string userID) => CreateNotification(FriendServiceManager.Instance.GetFriendData(userID), "new request");
-
     private void OnDestroy()
     {
-        if (InviteLobbyManager.Instance != null)
+        if (Instance == this)
         {
-            InviteLobbyManager.Instance.OnReceiveInvite -= InviteLobbyManager_OnReceiveInvite;
-        }
-
-        if (FriendServiceManager.Instance != null)
-        {
-            FriendServiceManager.Instance.OnReceiveFriendRequest -= FriendServiceManager_OnReceiveFriendRequest;
+            Instance = null;
         }
 
         objectPool.Clear();

@@ -8,8 +8,6 @@ using ServiceRequest;
 
 public class InviteLobbyManager : IDisposable
 {
-    public event Action<string> OnReceiveInvite;
-
     private static bool isDisposing = false;
     private static InviteLobbyManager instence;
     public static InviteLobbyManager Instance
@@ -100,9 +98,9 @@ public class InviteLobbyManager : IDisposable
         {
             inviteRequestList.Add(inviteRequest.SenderId);
 
-            Debug.Log($"Receive new request invite message from: {inviteRequest.SenderId}");
+            NotificationUI.Instance.CreateNotification(FriendServiceManager.Instance.GetFriendData(inviteRequest.SenderId), "send invite");
 
-            OnReceiveInvite?.Invoke(inviteRequest.SenderId);
+            Debug.Log($"Receive new request invite message from: {inviteRequest.SenderId}");
 
             HashDataManager.Instance.OnFriendDataChangedInvoke();
         }
@@ -144,6 +142,7 @@ public class InviteLobbyManager : IDisposable
     private void OnLobbyIdMessage(LobbyIdMessage lobbyIdMessage) // Connect to lobby
     {
         LobbyServiceManager.Instance.JoinLobbyByID(lobbyIdMessage.LobbyId)
+                                    .OnFailureComplete(m => InformationUI.Instance.Show(m))
                                     .OnFinalyComplete(HashDataManager.Instance.OnFriendDataChangedInvoke)
                                     .Start();
     }

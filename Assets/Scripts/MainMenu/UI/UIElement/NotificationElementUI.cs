@@ -72,10 +72,7 @@ public class NotificationElementUI : BaseUIListElement<FriendData>
         return this;
     }
 
-    public void StartDestroyTimer(float showTime)
-    {
-        showSequence.SetDelay(showTime).Play();
-    }
+    public void StartDestroyTimer(float showTime) => showSequence.SetDelay(showTime).Restart(true, showTime);
 
     public void RestartDestroyTimer(float showTime)
     {

@@ -15,7 +15,6 @@ public class FriendServiceManager : IDisposable
     public event Action OnUserDataUpdate;
     public event Action<IMessageReceivedEvent> OnMessageReceive;
     public event Action OnFriendListChanged;
-    public event Action<string> OnReceiveFriendRequest;
 
     private static bool isDisposing = false;
     private static FriendServiceManager instance;
@@ -40,7 +39,7 @@ public class FriendServiceManager : IDisposable
     private FriendServiceManager()
     {
         AuthenticationServiceManager.Instance.OnSignIn += AuthenticationServiceManager_OnSignIn;
-        AuthenticationServiceManager.Instance.OnSignOut += AuthenticationServiceManager_OnSignOut;
+        AuthenticationServiceManager.Instance.OnSignOutWait += AuthenticationServiceManager_OnSignOut;
 
         OnInitialize += FriendServiceManager_OnInitialize;
 
@@ -265,7 +264,10 @@ public class FriendServiceManager : IDisposable
     {
         if (obj.Relationship.Type == RelationshipType.FriendRequest && obj.Relationship.Member.Role == MemberRole.Source)
         {
-            OnReceiveFriendRequest?.Invoke(obj.Relationship.Member.Id);
+            if (NotificationUI.Instance != null)
+            {
+                NotificationUI.Instance.CreateNotification(GetFriendData(obj.Relationship.Member.Id), "new request");
+            }
         }
 
         OnFriendListChanged?.Invoke();
@@ -277,6 +279,11 @@ public class FriendServiceManager : IDisposable
 
     private void FriendServiceManager_OnInitialize()
     {
+        FriendsService.Instance.PresenceUpdated -= FriendsService_PresenceUpdated;
+        FriendsService.Instance.RelationshipAdded -= FriendsService_RelationshipAdded;
+        FriendsService.Instance.RelationshipDeleted -= FriendsService_RelationshipDeleted;
+        FriendsService.Instance.MessageReceived -= FriendsService_MessageReceived;
+
         FriendsService.Instance.PresenceUpdated += FriendsService_PresenceUpdated;
         FriendsService.Instance.RelationshipAdded += FriendsService_RelationshipAdded;
         FriendsService.Instance.RelationshipDeleted += FriendsService_RelationshipDeleted;
@@ -290,11 +297,11 @@ public class FriendServiceManager : IDisposable
         _ = InitializeAsync();
     }
 
-    private void AuthenticationServiceManager_OnSignOut()
+    private async Task AuthenticationServiceManager_OnSignOut()
     {
         isInit = false;
 
-        _ = FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Offline);
+        await FriendsService.Instance.SetPresenceAvailabilityAsync(Availability.Offline);
     }
 
     private void UnityServicesManager_OnInitialize()
@@ -319,7 +326,7 @@ public class FriendServiceManager : IDisposable
         if (AuthenticationServiceManager.Instance != null)
         {
             AuthenticationServiceManager.Instance.OnSignIn -= AuthenticationServiceManager_OnSignIn;
-            AuthenticationServiceManager.Instance.OnSignOut -= AuthenticationServiceManager_OnSignOut;
+            AuthenticationServiceManager.Instance.OnSignOutWait -= AuthenticationServiceManager_OnSignOut;
         }
 
         instance = null;
